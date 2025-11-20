@@ -1,4 +1,4 @@
-uv# Changes here will be overwritten by Copier
+# Changes here will be overwritten by Copier
 _commit: 0.2.5
 _src_path: https://github.com/aviation-impact-accelerator/aia-template-python
 aia_private_package_registry: true

@@ -1,4 +1,4 @@
-"""Engine for modelling navigational contrail avoidance"""
+"""Engine for modelling navigational contrail avoidance."""
 
 from __future__ import annotations
 
