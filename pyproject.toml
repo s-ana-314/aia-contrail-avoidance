@@ -8,7 +8,13 @@ authors = [
 ]
 requires-python = ">=3.12"
 readme = "README.md"
-dependencies = ["camia-model>=0.6.4,<0.7", "camia-engine>=0.4.4,<0.5"]
+dependencies = [
+    "camia-model>=0.6.4,<0.7",
+    "camia-engine>=0.4.4,<0.5",
+    "matplotlib>=3.10.7",
+    "cdsapi>=0.7.7",
+    "pycontrails[complete]>=0.59.1",
+]
 
 [project.urls]
 Repository = "https://github.com/s-ana-314/aia-model-contrial-avoidance"
