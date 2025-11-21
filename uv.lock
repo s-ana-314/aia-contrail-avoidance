@@ -23,7 +23,7 @@ wheels = [
 ]
 
 [[package]]
-name = "aia-model-contrial-avoidance"
+name = "aia-model-contrail-avoidance"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
@@ -58,6 +58,7 @@ requires-dist = [
     { name = "camia-model", specifier = ">=0.6.4,<0.7" },
     { name = "cdsapi", specifier = ">=0.7.7" },
     { name = "matplotlib", specifier = ">=3.10.7" },
+    { name = "pandas", specifier = ">=2.3.3" },
     { name = "pycontrails", extras = ["complete"], specifier = ">=0.59.1" },
 ]
 

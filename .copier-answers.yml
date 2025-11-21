@@ -6,12 +6,12 @@ camia_engine: runtime
 camia_model: runtime
 camia_report: true
 docs: true
-docs_base: aia-model-contrial-avoidance
+docs_base: aia-model-contrail-avoidance
 mkdocs_prebuild: true
 package_mode: true
 project_description: Engine for modelling navigational contrail avoidance
-project_name: AIA Model Contrial Avoidance
-python_package_distribution_name: aia-model-contrial-avoidance
-python_package_import_name: aia_model_contrial_avoidance
-repository_name: aia-model-contrial-avoidance
-repository_url: https://github.com/s-ana-314/aia-model-contrial-avoidance
+project_name: AIA Model Contrail Avoidance
+python_package_distribution_name: aia-model-contrail-avoidance
+python_package_import_name: aia_model_contrail_avoidance
+repository_name: aia-model-contrail-avoidance
+repository_url: https://github.com/s-ana-314/aia-model-contrail-avoidance
