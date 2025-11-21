@@ -23,7 +23,7 @@ def generate_synthetic_flight(  # noqa: PLR0913
     departure_time: datetime.datetime,
     length_of_flight: float,
     flight_level: int,
-) -> dict[str, Any]:
+) -> pd.DataFrame:
     """Generates synthetic flight from departure to arrival location as a series of timestamps.
 
     Args:
@@ -37,21 +37,30 @@ def generate_synthetic_flight(  # noqa: PLR0913
     distance_traveled_in_nautical_miles = flight_distance_from_location(
         departure_location, arrival_location
     )
-    number_of_timesteps = int(distance_traveled_in_nautical_miles)  # 1 nautical mile per timestep
-    latitudes = np.linspace(departure_location[0], arrival_location[0], number_of_timesteps)
-    longitudes = np.linspace(departure_location[1], arrival_location[1], number_of_timesteps)
+    number_of_timestamps = (
+        int(distance_traveled_in_nautical_miles) + 1
+    )  # 1 nautical mile per timestamp
+    latitudes = np.linspace(departure_location[0], arrival_location[0], number_of_timestamps)
+    longitudes = np.linspace(departure_location[1], arrival_location[1], number_of_timestamps)
 
-    return {
-        "flight_id": flight_id,
-        "timestamps": pd.date_range(
-            departure_time,
-            departure_time + datetime.timedelta(seconds=length_of_flight),
-            periods=number_of_timesteps,
-        ),
-        "latitudes": latitudes,
-        "longitudes": longitudes,
-        "flight_level": flight_level,
-    }
+    timestamps = pd.date_range(
+        departure_time,
+        departure_time + datetime.timedelta(seconds=length_of_flight),
+        periods=number_of_timestamps,
+    )
+
+    return pd.DataFrame(
+        {
+            "flight_id": np.full(number_of_timestamps, flight_id, dtype=int),
+            "departure_location": [departure_location] * number_of_timestamps,
+            "arrival_location": [arrival_location] * number_of_timestamps,
+            "departure_time": [departure_time] * number_of_timestamps,
+            "timestamp": timestamps,
+            "latitude": latitudes,
+            "longitude": longitudes,
+            "flight_level": np.full(number_of_timestamps, flight_level, dtype=int),
+        }
+    )
 
 
 def flight_distance_from_location(
