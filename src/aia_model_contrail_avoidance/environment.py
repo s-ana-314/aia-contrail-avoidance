@@ -8,8 +8,12 @@ __all__ = (
     "run_flight_data_through_environment",
 )
 
-import pandas as pd
+from typing import TYPE_CHECKING
+
 import xarray as xr
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 def calculate_effective_radiative_forcing(
@@ -32,17 +36,20 @@ def calculate_effective_radiative_forcing(
     return total_erf_list
 
 
-def create_grid_environment() -> xr.Dataset:
+def create_grid_environment() -> xr.DataArray:
     """Creates grid environment from COSIP grid data."""
-    ds = xr.open_dataset("./cosip_grid/cocipgrid_sample_result.nc", decode_timedelta=True)
-
-    ds["time"] = pd.to_datetime(ds["time"].values)
-
-    return ds[["longitude", "latitude", "level", "time", "ef_per_m"]]
+    environment_dataset = xr.open_dataset(
+        "./cosip_grid/cocipgrid_sample_result.nc",
+        decode_timedelta=True,
+        drop_variables=("air_pressure", "altitude", "contrail_age"),
+    )
+    return xr.DataArray(
+        environment_dataset["ef_per_m"], dims=("longitude", "latitude", "level", "time")
+    )
 
 
 def run_flight_data_through_environment(
-    flight_dataset: pd.DataFrame, environment: xr.Dataset
+    flight_dataset: pd.DataFrame, environment: xr.DataArray
 ) -> pd.DataFrame:
     """Runs flight data through environment to assign effective radiative forcing values.
 
@@ -67,8 +74,7 @@ def run_flight_data_through_environment(
         longitude=longitude_vector,
         method="nearest",
     )
-    erf_values = nearest_environment["ef_per_m"].astype(float)
 
-    flight_dataset["erf"] = erf_values
+    flight_dataset["erf"] = nearest_environment.astype(float)
 
     return flight_dataset

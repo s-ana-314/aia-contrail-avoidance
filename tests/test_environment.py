@@ -17,11 +17,8 @@ from aia_model_contrail_avoidance.flights import (
 def test_create_grid_environment() -> None:
     """Test creating grid environment."""
     environment = create_grid_environment()
-    assert "ef_per_m" in environment.data_vars
-    assert "latitude" in environment.dims
-    assert "longitude" in environment.dims
-    assert "level" in environment.dims
-    assert "time" in environment.dims
+    assert environment.name == "ef_per_m"
+    assert all(dim in environment.dims for dim in ("time", "level", "latitude", "longitude"))
 
 
 def test_run_flight_data_through_environment() -> None:
