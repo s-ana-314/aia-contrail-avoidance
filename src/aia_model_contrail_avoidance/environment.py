@@ -8,8 +8,12 @@ __all__ = (
     "run_flight_data_through_environment",
 )
 
-import pandas as pd
+from typing import TYPE_CHECKING
+
 import xarray as xr
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 def calculate_effective_radiative_forcing(
