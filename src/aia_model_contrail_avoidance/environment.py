@@ -5,6 +5,7 @@ from __future__ import annotations
 __all__ = (
     "calculate_effective_radiative_forcing",
     "create_grid_environment",
+    "create_synthetic_grid_environment",
     "run_flight_data_through_environment",
 )
 
