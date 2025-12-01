@@ -5,6 +5,7 @@ from __future__ import annotations
 __all__ = (
     "calculate_total_energy_forcing",
     "create_grid_environment",
+    "create_grid_environment_uk_adsb_jan",
     "create_synthetic_grid_environment",
     "run_flight_data_through_environment",
 )
@@ -38,6 +39,18 @@ def create_grid_environment() -> xr.DataArray:
     """Creates grid environment from COSIP grid data."""
     environment_dataset = xr.open_dataset(
         "./cosip_grid/cocipgrid_sample_result.nc",
+        decode_timedelta=True,
+        drop_variables=("air_pressure", "altitude", "contrail_age"),
+    )
+    return xr.DataArray(
+        environment_dataset["ef_per_m"], dims=("longitude", "latitude", "level", "time")
+    )
+
+
+def create_grid_environment_uk_adsb_jan() -> xr.DataArray:
+    """Creates grid environment from COSIP grid data."""
+    environment_dataset = xr.open_dataset(
+        "./cosip_grid/cocipgrid_uk_adsb_jan_result.nc",
         decode_timedelta=True,
         drop_variables=("air_pressure", "altitude", "contrail_age"),
     )
