@@ -110,3 +110,8 @@ def most_common_cruise_flight_level() -> int:
     Currently coinsides with sample grid data but will be updated.
     """
     return 300
+
+
+def read_adsb_flight_dataframe() -> pd.DataFrame:
+    parquet_file = "../flight-data/2024_01_01_sample_processed.parquet"
+    return pd.read_parquet(parquet_file)
