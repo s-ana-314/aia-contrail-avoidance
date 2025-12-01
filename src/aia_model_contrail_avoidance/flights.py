@@ -57,28 +57,40 @@ def generate_synthetic_flight(  # noqa: PLR0913
             "latitude": latitudes,
             "longitude": longitudes,
             "flight_level": np.full(number_of_timestamps, flight_level, dtype=int),
+            "distance_flown_in_segment": np.full(number_of_timestamps, 1.0, dtype=float),
         }
     )
 
 
 def flight_distance_from_location(
-    departure_location: tuple[float, float],
-    arrival_location: tuple[float, float],
-) -> float:
+    departure_location: tuple[float, float] | np.ndarray,
+    arrival_location: tuple[float, float] | np.ndarray,
+) -> float | np.ndarray:
     """Calculates the distance between two locations using the Haversine formula.
 
     This is the same as the great circle distance.
 
     Args:
-        departure_location: Tuple of (latitude, longitude) for departure.
-        arrival_location: Tuple of (latitude, longitude) for arrival.
+        departure_location: Tuple of (latitude, longitude) or array of shape (n, 2).
+        arrival_location: Tuple of (latitude, longitude) or array of shape (n, 2).
 
     Returns:
-        Distance in nautical miles.
+        Distance in nautical miles (float or array).
     """
     earth_radius = 3443.92  # Radius of the Earth in nautical miles
-    departure_latitude, departure_longitude = np.radians(departure_location)
-    arrival_latitude, arrival_longitude = np.radians(arrival_location)
+    _tuple_length = 2
+
+    departure_location = np.atleast_1d(departure_location)
+    arrival_location = np.atleast_1d(arrival_location)
+
+    # Handle scalar or tuple inputs
+    if departure_location.ndim == 1 and len(departure_location) == _tuple_length:
+        departure_location = departure_location.reshape(1, -1)
+    if arrival_location.ndim == 1 and len(arrival_location) == _tuple_length:
+        arrival_location = arrival_location.reshape(1, -1)
+
+    departure_latitude, departure_longitude = np.radians(departure_location).T
+    arrival_latitude, arrival_longitude = np.radians(arrival_location).T
 
     dlat = arrival_latitude - departure_latitude
     dlon = arrival_longitude - departure_longitude
@@ -88,7 +100,8 @@ def flight_distance_from_location(
     )
     c = 2 * np.arcsin(np.sqrt(a))
 
-    return float(earth_radius * c)
+    result = earth_radius * c
+    return float(result[0]) if result.size == 1 else result
 
 
 def most_common_cruise_flight_level() -> int:
@@ -97,3 +110,8 @@ def most_common_cruise_flight_level() -> int:
     Currently coinsides with sample grid data but will be updated.
     """
     return 300
+
+
+def read_adsb_flight_dataframe() -> pd.DataFrame:
+    parquet_file = "../flight-data/2024_01_01_sample_processed.parquet"
+    return pd.read_parquet(parquet_file)

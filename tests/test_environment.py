@@ -90,8 +90,8 @@ def test_run_flight_data_through_environment() -> None:
     ("flight_level", "expected_total_ef"),
     (
         (250, 0.0),
-        (300, 288.0 / 2.0),
-        (350, 288.0),
+        (300, 288.0 * 1852 / 2.0),
+        (350, 288.0 * 1852),
     ),
 )
 def test_calculate_effective_radiative_forcing(flight_level: int, expected_total_ef: float) -> None:

@@ -92,6 +92,8 @@ def run_flight_data_through_environment(
             values.
 
     """
+    nautical_miles_to_meters = 1852
+
     longitude_vector = xr.DataArray(flight_dataset["longitude"].values, dims=["points"])
     latitude_vector = xr.DataArray(flight_dataset["latitude"].values, dims=["points"])
     flight_level_vector = xr.DataArray(
@@ -99,6 +101,11 @@ def run_flight_data_through_environment(
         dims=["points"],
     )
     time_vector = xr.DataArray(flight_dataset["timestamp"].values, dims=["points"])
+
+    distance_flown_in_segment_vector = (
+        xr.DataArray(flight_dataset["distance_flown_in_segment"].values, dims=["points"])
+        * nautical_miles_to_meters
+    )
 
     nearest_environment = environment.sel(
         longitude=longitude_vector,
@@ -108,6 +115,6 @@ def run_flight_data_through_environment(
         method="nearest",
     )
 
-    flight_dataset["ef"] = nearest_environment.astype(float)
+    flight_dataset["ef"] = nearest_environment.astype(float) * distance_flown_in_segment_vector
 
     return flight_dataset
