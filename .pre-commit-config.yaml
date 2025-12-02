@@ -19,7 +19,7 @@ repos:
         args: [--pytest-test-first]
         exclude: tests/.*fixtures.*\.py
       - id: pretty-format-json
-        exclude: \.ipynb$
+        exclude: '(\.ipynb$|_stats\.json$)'
       - id: requirements-txt-fixer
       - id: trailing-whitespace
   - repo: https://github.com/astral-sh/ruff-pre-commit
