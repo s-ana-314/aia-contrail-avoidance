@@ -34,7 +34,7 @@ regional_flights_df = flight_dataframe[
 number_of_regional_flights = regional_flights_df["flight_id"].nunique()
 number_of_international_flights = number_of_flights - number_of_regional_flights
 
-# --- Departure–arrival pairs ---
+# --- Departure arrival pairs ---
 unique_departure_arrival_pairs = (
     flight_dataframe[["departure_airport_icao", "arrival_airport_icao"]].drop_duplicates().shape[0]
 )
