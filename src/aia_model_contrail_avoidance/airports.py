@@ -9,7 +9,7 @@ import pandas as pd
 
 def list_of_uk_airports() -> list[str]:
     """Filter the airport data to include only UK airports."""
-    airport_data = pd.read_parquet("../airport_data/airports.parquet")
+    airport_data = pd.read_parquet("airport_data/airports.parquet")
     uk_airports = airport_data[airport_data["iso_country"] == "GB"]
     return uk_airports["icao"].tolist()
 
