@@ -14,7 +14,7 @@ DISTANCE_BINS = [0, 0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 7, 8, 9, 10, 20, 100, 2000,
 ALTITUDE_BIN_SIZE = 10  # in flight levels (1000 ft)
 
 
-def _create_histogram(data: pd.Series, bins: list[float]) -> dict:
+def _create_histogram(data: pd.Series, bins: list[float]) -> dict[str, list[float] | float]:
     """Create histogram from data and bins."""
     hist, bin_edges = np.histogram(data.dropna(), bins=bins)
     return {"bin_edges": bin_edges.tolist(), "counts": hist.tolist()}
@@ -82,7 +82,7 @@ def generate_flight_statistics(parquet_file_name: str, jsonfilename: str) -> Non
         min_val = flight_dataframe[altitude_col].min()
         max_val = flight_dataframe[altitude_col].max()
 
-        bins = list(range(int(min_val), int(max_val) + 10, 10))
+        bins = [float(x) for x in range(int(min_val), int(max_val) + 10, 10)]
         altitude_histogram = _create_histogram(flight_dataframe[altitude_col], bins)
         altitude_histogram["empty_percentage"] = round(altitude_empty_percentage, 2)
 
