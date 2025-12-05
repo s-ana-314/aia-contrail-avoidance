@@ -29,6 +29,7 @@ source = { editable = "." }
 dependencies = [
     { name = "camia-engine" },
     { name = "camia-model" },
+    { name = "cartopy" },
     { name = "cdsapi" },
     { name = "matplotlib" },
     { name = "pandas" },
@@ -57,6 +58,7 @@ docs = [
 requires-dist = [
     { name = "camia-engine", specifier = ">=0.4.4,<0.5" },
     { name = "camia-model", specifier = ">=0.6.4,<0.7" },
+    { name = "cartopy", specifier = ">=0.25.0" },
     { name = "cdsapi", specifier = ">=0.7.7" },
     { name = "matplotlib", specifier = ">=3.10.7" },
     { name = "pandas", specifier = ">=2.3.3" },
