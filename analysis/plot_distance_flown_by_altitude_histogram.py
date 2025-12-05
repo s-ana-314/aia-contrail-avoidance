@@ -16,7 +16,7 @@ def plot_distance_flown_by_altitude_histogram(
     stats_file: str | Path = "2024_01_01_sample_stats_processed",
     output_file: str | Path = "distance_flown_by_altitude_histogram",
 ) -> None:
-    """Plot a histogram of distance flown by altitude from statistics data.
+    """Plot a histogram of distance flown by flight level from statistics data.
 
     Args:
         stats_file: Path to the JSON statistics file.
@@ -46,9 +46,11 @@ def plot_distance_flown_by_altitude_histogram(
     # Plot bars with appropriate widths
     ax.bar(bin_centers, counts, width=bin_widths, edgecolor="black", alpha=0.7, align="center")
 
-    ax.set_xlabel("Altitude (ft)", fontsize=12)
+    ax.set_xlabel("Flight Level (FL)", fontsize=12)
     ax.set_ylabel("Distance Flown (m)", fontsize=12)
-    ax.set_title("Histogram of Distance Flown at Each Altitude", fontsize=14, fontweight="bold")
+    ax.set_title(
+        "Histogram of Distance Flown at Each Flight Level (FL)", fontsize=14, fontweight="bold"
+    )
 
     ax.grid(axis="y", alpha=0.3, which="both")
 
