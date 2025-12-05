@@ -113,5 +113,6 @@ def most_common_cruise_flight_level() -> int:
 
 
 def read_adsb_flight_dataframe() -> pd.DataFrame:
-    parquet_file = "../flight-data/2024_01_01_sample_processed.parquet"
+    """Read the pre-processed ADS-B flight data from a parquet file."""
+    parquet_file = "data/2024_01_01_sample_processed.parquet"
     return pd.read_parquet(parquet_file)
