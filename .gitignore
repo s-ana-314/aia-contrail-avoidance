@@ -172,3 +172,4 @@ terraform/.terraform/
 # Project-specific data and results
 data/
 results/
+flight_data/*.parquet
