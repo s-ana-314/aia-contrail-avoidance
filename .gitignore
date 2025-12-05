@@ -168,3 +168,7 @@ terraform/.terraform/
 
 # macOS unnecessary directory information
 .DS_Store
+
+# Project-specific data and results
+data/
+results/
