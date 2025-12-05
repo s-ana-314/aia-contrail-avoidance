@@ -105,6 +105,7 @@ def run_flight_data_through_environment(
             values.
 
     """
+    flight_dataset = flight_dataset.copy()
     nautical_miles_to_meters = 1852
 
     longitude_vector = xr.DataArray(flight_dataset["longitude"].values, dims=["points"])
