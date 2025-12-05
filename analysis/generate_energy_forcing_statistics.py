@@ -1,4 +1,4 @@
-"""Generate energy forcing summary statistics including contrail formation analysis."""
+"""Generate energy forcing summary statistics including contrail formation analysis."""  # noqa: INP001
 
 from __future__ import annotations
 
