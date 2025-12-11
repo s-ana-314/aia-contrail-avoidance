@@ -11,26 +11,24 @@ __all__ = (
 )
 
 import numpy as np
-import pandas as pd
+import polars as pl
 import xarray as xr
 
 
 def calculate_total_energy_forcing(
-    flight_id: int | list[int], flight_dataset_with_energy_forcing: pd.DataFrame
+    flight_id: int | list[int], flight_dataset_with_energy_forcing: pl.DataFrame
 ) -> float | list[float]:
     """Calculates total energy forcing for a flight or list of flights."""
     if isinstance(flight_id, int):
         return float(
-            flight_dataset_with_energy_forcing.loc[
-                flight_dataset_with_energy_forcing["flight_id"] == flight_id, "ef"
-            ].sum()
+            flight_dataset_with_energy_forcing.filter(pl.col("flight_id") == flight_id)["ef"].sum()
         )
 
     total_energy_forcing_list = []
     for fid in flight_id:
-        total_energy_forcing = flight_dataset_with_energy_forcing.loc[
-            flight_dataset_with_energy_forcing["flight_id"] == fid, "ef"
-        ].sum()
+        total_energy_forcing = flight_dataset_with_energy_forcing.filter(
+            pl.col("flight_id") == fid
+        )["ef"].sum()
         total_energy_forcing_list.append(total_energy_forcing)
     return total_energy_forcing_list
 
@@ -73,7 +71,15 @@ def create_synthetic_grid_environment() -> xr.DataArray:
         [250, 300, 350],  # flight levels in hPa
         dims=("level"),
     )
-    times = xr.DataArray(pd.date_range("2024-01-01", periods=24, freq="1h"), dims=("time"))
+    times = xr.DataArray(
+        pl.datetime_range(
+            start=pl.datetime(2024, 1, 1),
+            end=pl.datetime(2024, 1, 1, 23),
+            interval="1h",
+            eager=True,
+        ).to_list(),
+        dims=("time"),
+    )
 
     ef_per_m = xr.DataArray(
         np.zeros((len(longitudes), len(latitudes), len(levels), len(times))),
@@ -94,8 +100,8 @@ def create_synthetic_grid_environment() -> xr.DataArray:
 
 
 def run_flight_data_through_environment(
-    flight_dataset: pd.DataFrame, environment: xr.DataArray
-) -> pd.DataFrame:
+    flight_dataset: pl.DataFrame, environment: xr.DataArray
+) -> pl.DataFrame:
     """Runs flight data through environment to assign effective radiative forcing values.
 
     Args:
@@ -105,19 +111,19 @@ def run_flight_data_through_environment(
             values.
 
     """
-    flight_dataset = flight_dataset.copy()
+    flight_dataset = flight_dataset.clone()
     nautical_miles_to_meters = 1852
 
-    longitude_vector = xr.DataArray(flight_dataset["longitude"].values, dims=["points"])
-    latitude_vector = xr.DataArray(flight_dataset["latitude"].values, dims=["points"])
+    longitude_vector = xr.DataArray(flight_dataset["longitude"].to_numpy(), dims=["points"])
+    latitude_vector = xr.DataArray(flight_dataset["latitude"].to_numpy(), dims=["points"])
     flight_level_vector = xr.DataArray(
-        flight_dataset["flight_level"].values,
+        flight_dataset["flight_level"].to_numpy(),
         dims=["points"],
     )
-    time_vector = xr.DataArray(flight_dataset["timestamp"].values, dims=["points"])
+    time_vector = xr.DataArray(flight_dataset["timestamp"].to_numpy(), dims=["points"])
 
     distance_flown_in_segment_vector = (
-        xr.DataArray(flight_dataset["distance_flown_in_segment"].values, dims=["points"])
+        xr.DataArray(flight_dataset["distance_flown_in_segment"].to_numpy(), dims=["points"])
         * nautical_miles_to_meters
     )
 
@@ -129,6 +135,6 @@ def run_flight_data_through_environment(
         method="nearest",
     )
 
-    flight_dataset["ef"] = nearest_environment.astype(float) * distance_flown_in_segment_vector
+    ef_values = nearest_environment.astype(float) * distance_flown_in_segment_vector
 
-    return flight_dataset
+    return flight_dataset.with_columns(pl.Series("ef", ef_values.values))
