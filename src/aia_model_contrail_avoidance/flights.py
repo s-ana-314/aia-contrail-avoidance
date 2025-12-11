@@ -35,18 +35,13 @@ def generate_synthetic_flight(  # noqa: PLR0913
     distance_traveled_in_nautical_miles = flight_distance_from_location(
         departure_location, arrival_location
     )
-    number_of_timestamps = (
-        int(distance_traveled_in_nautical_miles) + 1
-    )  # 1 nautical mile per timestamp
+    number_of_timestamps = int(distance_traveled_in_nautical_miles)  # 1 nautical mile per timestamp
     latitudes = np.linspace(departure_location[0], arrival_location[0], number_of_timestamps)
     longitudes = np.linspace(departure_location[1], arrival_location[1], number_of_timestamps)
-
-    timestamps = pl.datetime_range(
-        start=departure_time,
-        end=departure_time + datetime.timedelta(seconds=length_of_flight),
-        intervals=number_of_timestamps - 1,
-        eager=True,
-    )
+    timestamps = [
+        departure_time + datetime.timedelta(seconds=i * (length_of_flight / number_of_timestamps))
+        for i in range(number_of_timestamps)
+    ]
 
     return pl.DataFrame(
         {
