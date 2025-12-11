@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import pandas as pd
+import polars as pl
 
 from aia_model_contrail_avoidance.flights import flight_distance_from_location
 
 
-def generate_flight_dataframe_from_adsb_data() -> pd.DataFrame:
+def generate_flight_dataframe_from_adsb_data() -> pl.DataFrame:
     """Reads ADS-B flight data into a DataFrame and creates new columns required for analysis.
 
     New columns added:
@@ -18,7 +18,7 @@ def generate_flight_dataframe_from_adsb_data() -> pd.DataFrame:
         DataFrame containing ADS-B flight data.
     """
     parquet_file = "../flight-data/2024_01_01_sample.parquet"
-    flight_dataframe = pd.read_parquet(parquet_file)
+    flight_dataframe = pl.read_parquet(parquet_file)
     # keep needed columns only
     needed_columns = [
         "timestamp",
@@ -30,41 +30,46 @@ def generate_flight_dataframe_from_adsb_data() -> pd.DataFrame:
         "departure_airport_icao",
         "arrival_airport_icao",
     ]
-    flight_dataframe = flight_dataframe[needed_columns]
+    flight_dataframe = flight_dataframe.select(needed_columns)
 
     # Divide altitude_baro by 100 to convert from pha to flight level
-    flight_dataframe["altitude_baro"] = flight_dataframe["altitude_baro"] // 100.0
+    flight_dataframe = flight_dataframe.with_columns(
+        (pl.col("altitude_baro") // 100.0).alias("flight_level")
+    )
 
-    # Rename altitude_baro to flight_level
-    flight_dataframe = flight_dataframe.rename(columns={"altitude_baro": "flight_level"})
+    # Drop the original altitude_baro column
+    flight_dataframe = flight_dataframe.drop("altitude_baro")
 
-    # order by flight id and append distance_flown_in_segment for each datapoint by comparing it to previous with the same flightid
-    flight_dataframe = flight_dataframe.sort_values(by=["flight_id", "timestamp"])
+    # order by flight id and timestamp
+    flight_dataframe = flight_dataframe.sort(["flight_id", "timestamp"])
 
-    def calculate_segment_distance(group: pd.DataFrame) -> pd.Series:
-        prev_lat = group["latitude"].shift()
-        prev_lon = group["longitude"].shift()
+    # Calculate distance_flown_in_segment using window functions
+    flight_dataframe = flight_dataframe.with_columns(
+        [
+            pl.col("latitude").shift(1).over("flight_id").alias("prev_lat"),
+            pl.col("longitude").shift(1).over("flight_id").alias("prev_lon"),
+        ]
+    )
 
-        distances: list[float] = []
-        for idx, (_, row) in enumerate(group.iterrows()):
-            if idx == 0 or pd.isna(prev_lat.iloc[idx]):
-                distances.append(0.0)
-            else:
-                distance = flight_distance_from_location(
-                    (row["latitude"], row["longitude"]), (prev_lat.iloc[idx], prev_lon.iloc[idx])
-                )
-                distances.append(float(distance))
-        return pd.Series(distances, index=group.index)
+    # Calculate distances for each row
+    distances = []
+    for row in flight_dataframe.iter_rows(named=True):
+        if row["prev_lat"] is None or row["prev_lon"] is None:
+            distances.append(0.0)
+        else:
+            distance = flight_distance_from_location(
+                (row["latitude"], row["longitude"]), (row["prev_lat"], row["prev_lon"])
+            )
+            distances.append(float(distance))
 
-    flight_dataframe["distance_flown_in_segment"] = flight_dataframe.groupby(
-        "flight_id",
-        group_keys=False,
-    ).apply(calculate_segment_distance)
+    flight_dataframe = flight_dataframe.with_columns(
+        pl.Series("distance_flown_in_segment", distances)
+    ).drop(["prev_lat", "prev_lon"])
 
     return flight_dataframe
 
 
-def process_adsb_flight_data(generated_dataframe: pd.DataFrame, save_filename: str) -> None:
+def process_adsb_flight_data(generated_dataframe: pl.DataFrame, save_filename: str) -> None:
     """Process ADS-B flight data and save cleaned DataFrame to parquet.
 
     Removes datapoints with low flight levels (near or on ground) or zero distance flown between time intervals.
@@ -74,12 +79,12 @@ def process_adsb_flight_data(generated_dataframe: pd.DataFrame, save_filename: s
         save_filename: Filename (without extension) to save the processed DataFrame.
     """
     # Remove datapoints where flight level is none or negative
-    dataframe_processed = generated_dataframe[
-        generated_dataframe["flight_level"].notna() & (generated_dataframe["flight_level"] >= 0)
-    ]
+    dataframe_processed = generated_dataframe.filter(
+        pl.col("flight_level").is_not_null() & (pl.col("flight_level") >= 0)
+    )
 
     # Remove datapoints where distance flown in segment is zero
-    dataframe_processed = dataframe_processed[dataframe_processed["distance_flown_in_segment"] > 0]
+    dataframe_processed = dataframe_processed.filter(pl.col("distance_flown_in_segment") > 0)
 
     # percentage of datapoints removed
     percentage_removed = 100 * (1 - len(dataframe_processed) / len(generated_dataframe))
@@ -87,7 +92,7 @@ def process_adsb_flight_data(generated_dataframe: pd.DataFrame, save_filename: s
         f"INFO: Removed {percentage_removed:.2f}% of datapoints due to low flight level or zero distance flown"
     )
     # Save processed dataframe to parquet
-    dataframe_processed.to_parquet("data/" + save_filename + ".parquet", index=False)
+    dataframe_processed.write_parquet("data/" + save_filename + ".parquet")
 
 
 if __name__ == "__main__":
