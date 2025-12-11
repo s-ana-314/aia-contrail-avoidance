@@ -6,7 +6,7 @@ import json
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
+import polars as pl
 
 
 def plot_energy_forcing_histogram(json_file: str, output_plot: str) -> None:
@@ -21,16 +21,19 @@ def plot_energy_forcing_histogram(json_file: str, output_plot: str) -> None:
         stats = json.load(f)
 
     # Load the full flight data with energy forcing
-    flight_data = pd.read_parquet("data/2024_01_01_sample_with_ef.parquet")
+    flight_data = pl.read_parquet("data/2024_01_01_sample_with_ef.parquet")
 
     # Calculate total energy forcing per flight
-    flight_ef_summary = flight_data.groupby("flight_id")["ef"].sum().reset_index(name="total_ef")
-    flight_ef_summary = flight_ef_summary.sort_values("total_ef", ascending=False).reset_index(
-        drop=True
+    flight_ef_summary = (
+        flight_data.group_by("flight_id")
+        .agg(pl.col("ef").sum().alias("total_ef"))
+        .sort("total_ef", descending=True)
     )
 
     # Calculate cumulative energy forcing
-    flight_ef_summary["cumulative_ef"] = flight_ef_summary["total_ef"].cumsum()
+    flight_ef_summary = flight_ef_summary.with_columns(
+        pl.col("total_ef").cum_sum().alias("cumulative_ef")
+    )
     total_energy_forcing = flight_ef_summary["total_ef"].sum()
 
     # Find how many flights contribute to 80%, 50%, and 20% of total forcing
