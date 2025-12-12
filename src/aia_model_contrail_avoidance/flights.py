@@ -11,7 +11,7 @@ __all__ = (
 import datetime
 
 import numpy as np
-import pandas as pd
+import polars as pl
 
 
 def generate_synthetic_flight(  # noqa: PLR0913
@@ -21,7 +21,7 @@ def generate_synthetic_flight(  # noqa: PLR0913
     departure_time: datetime.datetime,
     length_of_flight: float,
     flight_level: int,
-) -> pd.DataFrame:
+) -> pl.DataFrame:
     """Generates synthetic flight from departure to arrival location as a series of timestamps.
 
     Args:
@@ -35,19 +35,15 @@ def generate_synthetic_flight(  # noqa: PLR0913
     distance_traveled_in_nautical_miles = flight_distance_from_location(
         departure_location, arrival_location
     )
-    number_of_timestamps = (
-        int(distance_traveled_in_nautical_miles) + 1
-    )  # 1 nautical mile per timestamp
+    number_of_timestamps = int(distance_traveled_in_nautical_miles)  # 1 nautical mile per timestamp
     latitudes = np.linspace(departure_location[0], arrival_location[0], number_of_timestamps)
     longitudes = np.linspace(departure_location[1], arrival_location[1], number_of_timestamps)
+    timestamps = [
+        departure_time + datetime.timedelta(seconds=i * (length_of_flight / number_of_timestamps))
+        for i in range(number_of_timestamps)
+    ]
 
-    timestamps = pd.date_range(
-        departure_time,
-        departure_time + datetime.timedelta(seconds=length_of_flight),
-        periods=number_of_timestamps,
-    )
-
-    return pd.DataFrame(
+    return pl.DataFrame(
         {
             "flight_id": np.full(number_of_timestamps, flight_id, dtype=int),
             "departure_location": [departure_location] * number_of_timestamps,
@@ -112,7 +108,7 @@ def most_common_cruise_flight_level() -> int:
     return 300
 
 
-def read_adsb_flight_dataframe() -> pd.DataFrame:
+def read_adsb_flight_dataframe() -> pl.DataFrame:
     """Read the pre-processed ADS-B flight data from a parquet file."""
     parquet_file = "data/2024_01_01_sample_processed.parquet"
-    return pd.read_parquet(parquet_file)
+    return pl.read_parquet(parquet_file)

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 
 import numpy as np
-import pandas as pd
+import polars as pl
 
 
 def generate_energy_forcing_statistics(
@@ -19,11 +19,11 @@ def generate_energy_forcing_statistics(
 
     """
     # Load the flight data with energy forcing
-    flight_dataframe = pd.read_parquet(f"data/{parquet_file}.parquet")
+    flight_dataframe = pl.read_parquet(f"data/{parquet_file}.parquet")
 
     # --- Basic Energy Forcing Statistics ---
     total_datapoints = len(flight_dataframe)
-    total_flights = flight_dataframe["flight_id"].nunique()
+    total_flights = flight_dataframe["flight_id"].n_unique()
 
     # Calculate total distance flown
     total_distance_flown = flight_dataframe["distance_flown_in_segment"].sum()
@@ -31,7 +31,7 @@ def generate_energy_forcing_statistics(
     # --- Contrail Formation Analysis ---
 
     # Segments with positive energy forcing are forming contrails
-    contrail_forming_segments = flight_dataframe[flight_dataframe["ef"] > 0]
+    contrail_forming_segments = flight_dataframe.filter(pl.col("ef") > 0)
 
     # Distance that forms contrails
     distance_forming_contrails = contrail_forming_segments["distance_flown_in_segment"].sum()
@@ -40,7 +40,7 @@ def generate_energy_forcing_statistics(
     )
 
     # Number of flights that form contrails (at least one segment with ef > 0)
-    flights_forming_contrails = contrail_forming_segments["flight_id"].nunique()
+    flights_forming_contrails = contrail_forming_segments["flight_id"].n_unique()
     percentage_flights_forming_contrails = (flights_forming_contrails / total_flights) * 100
 
     # --- Energy Forcing Statistics ---
@@ -54,12 +54,12 @@ def generate_energy_forcing_statistics(
     median_ef_contrail_segments = contrail_forming_segments["ef"].median()
 
     # Per-flight energy forcing statistics
-    flight_ef_summary = (
-        flight_dataframe.groupby("flight_id")["ef"].sum().reset_index(name="total_ef")
+    flight_ef_summary = flight_dataframe.group_by("flight_id").agg(
+        pl.col("ef").sum().alias("total_ef")
     )
 
     # generate a per flight histogram of ef values as a cumualative histogram
-    ef_values = flight_ef_summary["total_ef"].to_numpy(dtype="float64")
+    ef_values = flight_ef_summary["total_ef"].to_numpy().astype("float64")
     hist_counts, bin_edges = np.histogram(ef_values, bins=50, density=False)
     cumulative_counts = hist_counts.cumsum()
     ef_histogram = {
@@ -73,30 +73,47 @@ def generate_energy_forcing_statistics(
         "timestamp" in flight_dataframe.columns
         and "distance_flown_in_segment" in flight_dataframe.columns
     ):
-        flight_dataframe_copy = flight_dataframe.copy()
-        flight_dataframe_copy["hour"] = pd.to_datetime(flight_dataframe_copy["timestamp"]).dt.hour
+        flight_dataframe_with_hour = flight_dataframe.with_columns(
+            pl.col("timestamp").dt.hour().alias("hour")
+        )
         distance_per_hour = (
-            flight_dataframe_copy.groupby("hour")["distance_flown_in_segment"].sum().to_dict()
+            flight_dataframe_with_hour.group_by("hour")
+            .agg(pl.col("distance_flown_in_segment").sum())
+            .to_dict(as_series=False)
+        )
+        hour_to_distance = dict(
+            zip(
+                distance_per_hour["hour"],
+                distance_per_hour["distance_flown_in_segment"],
+                strict=True,
+            )
         )
         distance_flown_per_hour_histogram = {
-            str(hour): distance_per_hour.get(hour, 0) for hour in range(24)
+            str(hour): hour_to_distance.get(hour, 0) for hour in range(24)
         }
     # histogram of distance forming contrails per hour of the day
     if "timestamp" in contrail_forming_segments.columns:
-        contrail_forming_segments_copy = contrail_forming_segments.copy()
-        contrail_forming_segments_copy["hour"] = pd.to_datetime(
-            contrail_forming_segments_copy["timestamp"]
-        ).dt.hour
+        contrail_forming_segments_with_hour = contrail_forming_segments.with_columns(
+            pl.col("timestamp").dt.hour().alias("hour")
+        )
 
         distance_per_hour = (
-            contrail_forming_segments_copy.groupby("hour")["distance_flown_in_segment"]
-            .sum()
-            .to_dict()
+            contrail_forming_segments_with_hour.group_by("hour")
+            .agg(pl.col("distance_flown_in_segment").sum())
+            .to_dict(as_series=False)
+        )
+
+        hour_to_distance = dict(
+            zip(
+                distance_per_hour["hour"],
+                distance_per_hour["distance_flown_in_segment"],
+                strict=True,
+            )
         )
 
         # Ensure all hours 0-23 are present (fill missing hours with 0)
         distance_forming_contrails_per_hour_histogram = {
-            str(hour): distance_per_hour.get(hour, 0) for hour in range(24)
+            str(hour): hour_to_distance.get(hour, 0) for hour in range(24)
         }
     else:
         distance_forming_contrails_per_hour_histogram = None
@@ -119,11 +136,11 @@ def generate_energy_forcing_statistics(
             ),
         },
         "energy_forcing_per_segment": {
-            "mean": float(mean_energy_forcing_per_segment),
-            "median": float(median_energy_forcing_per_segment),
-            "max": float(max_energy_forcing_per_segment),
-            "mean_contrail_forming_only": float(mean_ef_contrail_segments),
-            "median_contrail_forming_only": float(median_ef_contrail_segments),
+            "mean": mean_energy_forcing_per_segment,
+            "median": median_energy_forcing_per_segment,
+            "max": max_energy_forcing_per_segment,
+            "mean_contrail_forming_only": mean_ef_contrail_segments,
+            "median_contrail_forming_only": median_ef_contrail_segments,
         },
         "energy_forcing_per_flight": {
             "histogram": ef_histogram,

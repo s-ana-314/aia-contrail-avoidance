@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
+import polars as pl
 
 from aia_model_contrail_avoidance.airports import list_of_uk_airports
 
@@ -14,13 +14,13 @@ DISTANCE_BINS = [0, 0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 7, 8, 9, 10, 20, 100, 2000,
 ALTITUDE_BIN_SIZE = 10  # in flight levels (1000 ft)
 
 
-def _create_histogram(data: pd.Series, bins: list[float]) -> dict[str, list[float] | float]:
+def _create_histogram(data: pl.Series, bins: list[float]) -> dict[str, list[float] | float]:
     """Create histogram from data and bins."""
-    hist, bin_edges = np.histogram(data.dropna(), bins=bins)
+    hist, bin_edges = np.histogram(data.drop_nulls().to_numpy(), bins=bins)
     return {"bin_edges": bin_edges.tolist(), "counts": hist.tolist()}
 
 
-def generate_flight_statistics(parquet_file_name: str, jsonfilename: str) -> None:
+def generate_flight_statistics(parquet_file_name: str, jsonfilename: str) -> None:  # noqa: PLR0915
     """Generate flight data statistics and save to JSON file.
 
     Args:
@@ -33,33 +33,31 @@ def generate_flight_statistics(parquet_file_name: str, jsonfilename: str) -> Non
         msg = f"Parquet file not found: data/{parquet_file_name}.parquet"
         raise FileNotFoundError(msg)
 
-    flight_dataframe = pd.read_parquet(parquet_file_path)
+    flight_dataframe = pl.read_parquet(parquet_file_path)
 
     # --- Basic stats ---
     timeframe_first = flight_dataframe["timestamp"].min()
     timeframe_last = flight_dataframe["timestamp"].max()
     number_of_datapoints = len(flight_dataframe)
-    number_of_flights = flight_dataframe["flight_id"].nunique()
+    number_of_flights = flight_dataframe["flight_id"].n_unique()
 
     # --- UK / Regional flight classification ---
     uk_airports = set(list_of_uk_airports())
-    regional_flights_df = flight_dataframe[
-        (flight_dataframe["departure_airport_icao"].isin(uk_airports))
-        & (flight_dataframe["arrival_airport_icao"].isin(uk_airports))
-    ]
-    number_of_regional_flights = regional_flights_df["flight_id"].nunique()
+    regional_flights_df = flight_dataframe.filter(
+        (pl.col("departure_airport_icao").is_in(uk_airports))
+        & (pl.col("arrival_airport_icao").is_in(uk_airports))
+    )
+    number_of_regional_flights = regional_flights_df["flight_id"].n_unique()
     number_of_international_flights = number_of_flights - number_of_regional_flights
 
     # --- Departure arrival pairs ---
     unique_departure_arrival_pairs = (
-        flight_dataframe[["departure_airport_icao", "arrival_airport_icao"]]
-        .drop_duplicates()
-        .shape[0]
+        flight_dataframe.select(["departure_airport_icao", "arrival_airport_icao"]).unique().height
     )
     regional_departure_arrival_pairs = (
-        regional_flights_df[["departure_airport_icao", "arrival_airport_icao"]]
-        .drop_duplicates()
-        .shape[0]
+        regional_flights_df.select(["departure_airport_icao", "arrival_airport_icao"])
+        .unique()
+        .height
     )
 
     # --- Histogram of distance flown in segment ---
@@ -77,23 +75,34 @@ def generate_flight_statistics(parquet_file_name: str, jsonfilename: str) -> Non
 
     if altitude_col in flight_dataframe.columns:
         altitude_empty_percentage = (
-            flight_dataframe[altitude_col].isna().sum() / len(flight_dataframe) * 100
+            flight_dataframe[altitude_col].null_count() / len(flight_dataframe) * 100
         )
-        min_val = flight_dataframe[altitude_col].min()
-        max_val = flight_dataframe[altitude_col].max()
 
-        bins = [float(x) for x in range(int(min_val), int(max_val) + 10, 10)]
+        min_val = flight_dataframe[altitude_col].cast(pl.Float64).min()
+        max_val = flight_dataframe[altitude_col].cast(pl.Float64).max()
+
+        if min_val is not None and max_val is not None:
+            min_int: int = int(min_val)  # type: ignore[arg-type]
+            max_int: int = int(max_val)  # type: ignore[arg-type]
+            bins = [float(x) for x in range(min_int, max_int + 10, 10)]
+        else:
+            bins = []
         altitude_histogram = _create_histogram(flight_dataframe[altitude_col], bins)
         altitude_histogram["empty_percentage"] = round(altitude_empty_percentage, 2)
 
     # --- Distance flown at each altitude band ---
     if altitude_col in flight_dataframe.columns and distance_col in flight_dataframe.columns:
         distance_by_altitude_bin = []
-        valid_altitude_mask = flight_dataframe[altitude_col].notna()
+        valid_altitude_df = flight_dataframe.filter(pl.col(altitude_col).is_not_null())
+        altitude_values = valid_altitude_df[altitude_col].to_numpy()
 
         for i in range(1, len(bins)):
-            mask = valid_altitude_mask & (np.digitize(flight_dataframe[altitude_col], bins) == i)
-            total_distance = flight_dataframe.loc[mask, distance_col].sum()
+            bin_indices = np.digitize(altitude_values, bins) == i
+            if bin_indices.any():
+                filtered_df = valid_altitude_df.filter(pl.Series(bin_indices))
+                total_distance = filtered_df[distance_col].sum()
+            else:
+                total_distance = 0.0
             distance_by_altitude_bin.append(float(total_distance))
 
         distance_by_altitude_histogram = {
@@ -105,19 +114,35 @@ def generate_flight_statistics(parquet_file_name: str, jsonfilename: str) -> Non
     planes_per_hour_histogram = None
     if "timestamp" in flight_dataframe.columns:
         # Extract hour from timestamp
-        flight_dataframe_copy = flight_dataframe.copy()
-        flight_dataframe_copy["hour"] = pd.to_datetime(flight_dataframe_copy["timestamp"]).dt.hour
-        planes_per_hour = flight_dataframe_copy.groupby("hour")["flight_id"].nunique().to_dict()
-        planes_per_hour_histogram = {str(hour): planes_per_hour.get(hour, 0) for hour in range(24)}
+        flight_dataframe_with_hour = flight_dataframe.with_columns(
+            pl.col("timestamp").dt.hour().alias("hour")
+        )
+        planes_per_hour = (
+            flight_dataframe_with_hour.group_by("hour")
+            .agg(pl.col("flight_id").n_unique())
+            .to_dict(as_series=False)
+        )
+        hour_to_planes = dict(
+            zip(planes_per_hour["hour"], planes_per_hour["flight_id"], strict=True)
+        )
+        planes_per_hour_histogram = {str(hour): hour_to_planes.get(hour, 0) for hour in range(24)}
 
     distance_flown_per_hour_histogram = None
     if "timestamp" in flight_dataframe.columns and distance_col in flight_dataframe.columns:
         # Extract hour from timestamp
-        flight_dataframe_copy = flight_dataframe.copy()
-        flight_dataframe_copy["hour"] = pd.to_datetime(flight_dataframe_copy["timestamp"]).dt.hour
-        distance_per_hour = flight_dataframe_copy.groupby("hour")[distance_col].sum().to_dict()
+        flight_dataframe_with_hour = flight_dataframe.with_columns(
+            pl.col("timestamp").dt.hour().alias("hour")
+        )
+        distance_per_hour = (
+            flight_dataframe_with_hour.group_by("hour")
+            .agg(pl.col(distance_col).sum())
+            .to_dict(as_series=False)
+        )
+        hour_to_distance = dict(
+            zip(distance_per_hour["hour"], distance_per_hour[distance_col], strict=True)
+        )
         distance_flown_per_hour_histogram = {
-            str(hour): distance_per_hour.get(hour, 0) for hour in range(24)
+            str(hour): hour_to_distance.get(hour, 0) for hour in range(24)
         }
 
     # --- Build summary ---

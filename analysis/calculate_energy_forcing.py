@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import pandas as pd
+import polars as pl
 
 from aia_model_contrail_avoidance.environment import (
     calculate_total_energy_forcing,
@@ -32,29 +32,17 @@ def calculate_energy_forcing_for_flights(parquet_file_with_ef: str, output_file_
     }
 
     # Remove datapoints where distance_traveled_in_segment is > tolerance (2000 m)
-    flight_dataframe_without_large_distance_segments = flight_dataframe[
-        flight_dataframe["distance_flown_in_segment"] <= distance_traveled_tolerance_in_meters
-    ]
+    flight_dataframe_without_large_distance_segments = flight_dataframe.filter(
+        pl.col("distance_flown_in_segment") <= distance_traveled_tolerance_in_meters
+    )
 
     # Remove datapoints that are outside the UK FIR (latitude and longitude bounds)
-    flight_dataframe_in_uk_airspace = flight_dataframe_without_large_distance_segments[
-        (
-            flight_dataframe_without_large_distance_segments["latitude"]
-            >= environmental_bounds["lat_min"]
-        )
-        & (
-            flight_dataframe_without_large_distance_segments["latitude"]
-            <= environmental_bounds["lat_max"]
-        )
-        & (
-            flight_dataframe_without_large_distance_segments["longitude"]
-            >= environmental_bounds["lon_min"]
-        )
-        & (
-            flight_dataframe_without_large_distance_segments["longitude"]
-            <= environmental_bounds["lon_max"]
-        )
-    ]
+    flight_dataframe_in_uk_airspace = flight_dataframe_without_large_distance_segments.filter(
+        (pl.col("latitude") >= environmental_bounds["lat_min"])
+        & (pl.col("latitude") <= environmental_bounds["lat_max"])
+        & (pl.col("longitude") >= environmental_bounds["lon_min"])
+        & (pl.col("longitude") <= environmental_bounds["lon_max"])
+    )
     # informative statistics
     percentage_removed_due_to_large_distances_flown = 100 * (
         1 - len(flight_dataframe_without_large_distance_segments) / len(flight_dataframe)
@@ -80,19 +68,19 @@ def calculate_energy_forcing_for_flights(parquet_file_with_ef: str, output_file_
     print(f"Processed {len(flight_data_with_ef)} data points")
 
     # Calculate total energy forcing for each unique flight
-    unique_flight_ids = flight_data_with_ef["flight_id"].unique().tolist()
+    unique_flight_ids = flight_data_with_ef["flight_id"].unique().to_list()
     total_ef_list = calculate_total_energy_forcing(unique_flight_ids, flight_data_with_ef)
 
     # Create a summary dataframes
-    ef_summary = pd.DataFrame(
+    ef_summary = pl.DataFrame(
         {"flight_id": unique_flight_ids, "total_energy_forcing": total_ef_list}
     )
 
     # Save the full dataset with energy forcing
-    flight_data_with_ef.to_parquet("data/" + parquet_file_with_ef + ".parquet", index=False)
+    flight_data_with_ef.write_parquet("data/" + parquet_file_with_ef + ".parquet")
 
     # Save the summary dataframe
-    ef_summary.to_parquet("data/" + output_file_name + ".parquet", index=False)
+    ef_summary.write_parquet("data/" + output_file_name + ".parquet")
 
 
 if __name__ == "__main__":

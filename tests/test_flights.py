@@ -45,13 +45,14 @@ def test_generate_synthetic_flight() -> None:
     assert len(sample_flight_dataframe["timestamp"]) == pytest.approx(
         expected_distance_in_nautical_miles, rel=0.05
     )
-    assert sample_flight_dataframe["timestamp"].iloc[-1] == pytest.approx(
-        expected_arrival_time, abs=datetime.timedelta(seconds=60)
+    actual_arrival_time = sample_flight_dataframe["timestamp"][-1]
+    assert actual_arrival_time.timestamp() == pytest.approx(
+        expected_arrival_time.timestamp(), abs=60
     )
     assert sample_flight_dataframe["latitude"][0] == pytest.approx(
         heathrow_airport_location[0], abs=1e-4
     )
-    assert sample_flight_dataframe["longitude"].iloc[-1] == pytest.approx(
+    assert sample_flight_dataframe["longitude"][-1] == pytest.approx(
         edinburgh_airport_location[1], abs=1e-4
     )
     assert sample_flight_dataframe["flight_level"][0] == most_common_cruise_flight_level()

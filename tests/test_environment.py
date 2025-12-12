@@ -83,7 +83,7 @@ def test_run_flight_data_through_environment() -> None:
 
     flight_with_erf = run_flight_data_through_environment(sample_flight_dataframe, environment)
     assert "ef" in flight_with_erf.columns
-    assert not flight_with_erf["ef"].isnull().any()
+    assert flight_with_erf["ef"].null_count() == 0
 
 
 @pytest.mark.parametrize(
