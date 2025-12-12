@@ -9,7 +9,7 @@ import polars as pl
 
 def list_of_uk_airports() -> list[str]:
     """Filter the airport data to include only UK airports."""
-    airport_data = pl.read_parquet("airport_data/airports.parquet")
+    airport_data = pl.read_parquet("../airport_data/airports.parquet")
     uk_airports = airport_data.filter(pl.col("iso_country") == "GB")
     return uk_airports["icao"].to_list()
 
