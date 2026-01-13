@@ -32,7 +32,13 @@ def uk_regional_flights(flight_data: pl.DataFrame) -> pl.DataFrame:
 
 
 def airport_icao_code_to_location(airport_icao_code: str) -> tuple[float, float]:
-    """Get the latitude and longitude of a given airport code."""
+    """Get the latitude and longitude of a given airport code.
+
+    Args:
+        airport_icao_code (str): ICAO code of the airport.
+
+    Returns: tuple[float, float]: (latitude, longitude) of the airport.
+    """
     airport_data = pl.read_parquet("../airport_data/airports.parquet")
     airport_info = airport_data.filter(pl.col("icao") == airport_icao_code).select(
         ["latitude_deg", "longitude_deg"]
@@ -46,7 +52,14 @@ def airport_icao_code_to_location(airport_icao_code: str) -> tuple[float, float]
 
 
 def airport_name_from_icao_code(airport_icao_code: str) -> str:
-    """Get the name of the airport given its ICAO code."""
+    """Get the name of the airport given its ICAO code.
+
+    Args:
+        airport_icao_code (str): ICAO code of the airport.
+
+    Returns:
+        str: Name of the airport.
+    """
     airport_data = pl.read_parquet("../airport_data/airports.parquet")
     airport_info = airport_data.filter(pl.col("icao") == airport_icao_code).select(["name"])
     if airport_info.is_empty():
