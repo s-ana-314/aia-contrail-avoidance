@@ -9,6 +9,8 @@ __all__ = [
     "uk_regional_flights",
 ]
 
+from typing import overload
+
 import polars as pl
 
 
@@ -31,6 +33,14 @@ def uk_regional_flights(flight_data: pl.DataFrame) -> pl.DataFrame:
     )
 
 
+@overload
+def airport_icao_code_to_location(airport_icao_code: str) -> tuple[float, float]: ...
+
+
+@overload
+def airport_icao_code_to_location(airport_icao_code: list[str]) -> list[tuple[float, float]]: ...
+
+
 def airport_icao_code_to_location(
     airport_icao_code: str | list[str],
 ) -> tuple[float, float] | list[tuple[float, float]]:
@@ -51,7 +61,8 @@ def airport_icao_code_to_location(
         if airport_info.is_empty():
             msg = f"Airport code {airport_icao_code} not found."
             raise ValueError(msg)
-        return (airport_info["lat"][0], airport_info["lon"][0])
+        # explicit casts to float so mypy knows the return types
+        return (float(airport_info["lat"][0]), float(airport_info["lon"][0]))
 
     airport_info = airport_data.filter(pl.col("icao").is_in(airport_icao_code)).select(
         ["icao", "lat", "lon"]
@@ -59,7 +70,7 @@ def airport_icao_code_to_location(
     if airport_info.is_empty():
         msg = f"No airports found for codes: {airport_icao_code}"
         raise ValueError(msg)
-    return [(row["lat"], row["lon"]) for row in airport_info.iter_rows(named=True)]
+    return [(float(row["lat"]), float(row["lon"])) for row in airport_info.iter_rows(named=True)]
 
 
 def airport_name_from_icao_code(airport_icao_code: str) -> str:
@@ -76,4 +87,5 @@ def airport_name_from_icao_code(airport_icao_code: str) -> str:
     if airport_info.is_empty():
         msg = f"Airport code {airport_icao_code} not found."
         raise ValueError(msg)
-    return airport_info["name"][0]
+    # cast to str to avoid returning Any
+    return str(airport_info["name"][0])
