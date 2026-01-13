@@ -31,22 +31,35 @@ def uk_regional_flights(flight_data: pl.DataFrame) -> pl.DataFrame:
     )
 
 
-def airport_icao_code_to_location(airport_icao_code: str) -> tuple[float, float]:
-    """Get the latitude and longitude of a given airport code.
+def airport_icao_code_to_location(
+    airport_icao_code: str | list[str],
+) -> tuple[float, float] | list[tuple[float, float]]:
+    """Get the latitude and longitude of a given airport code or codes.
 
     Args:
-        airport_icao_code (str): ICAO code of the airport.
+        airport_icao_code (str | list[str]): ICAO code(s) of the airport.
 
-    Returns: tuple[float, float]: (latitude, longitude) of the airport.
+    Returns:
+        tuple[float, float] | list[tuple[float, float]]: (latitude, longitude) of the airport(s).
     """
     airport_data = pl.read_parquet("airport_data/airports.parquet")
-    airport_info = airport_data.filter(pl.col("icao") == airport_icao_code).select(["lat", "lon"])
+
+    if isinstance(airport_icao_code, str):
+        airport_info = airport_data.filter(pl.col("icao") == airport_icao_code).select(
+            ["lat", "lon"]
+        )
+        if airport_info.is_empty():
+            msg = f"Airport code {airport_icao_code} not found."
+            raise ValueError(msg)
+        return (airport_info["lat"][0], airport_info["lon"][0])
+
+    airport_info = airport_data.filter(pl.col("icao").is_in(airport_icao_code)).select(
+        ["icao", "lat", "lon"]
+    )
     if airport_info.is_empty():
-        msg = f"Airport code {airport_icao_code} not found."
+        msg = f"No airports found for codes: {airport_icao_code}"
         raise ValueError(msg)
-    lat = airport_info["lat"][0]
-    lon = airport_info["lon"][0]
-    return (lat, lon)
+    return [(row["lat"], row["lon"]) for row in airport_info.iter_rows(named=True)]
 
 
 def airport_name_from_icao_code(airport_icao_code: str) -> str:
