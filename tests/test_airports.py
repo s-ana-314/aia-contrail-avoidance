@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from aia_model_contrail_avoidance.airports import (
     airport_icao_code_to_location,
     airport_name_from_icao_code,
@@ -26,7 +28,15 @@ def test_airport_icao_code_to_location() -> None:
     assert abs(lon - (-0.46)) < tolerance
 
 
-def test_airport_name_from_icao_code() -> None:
+@pytest.mark.parametrize(
+    ("icao_code", "expected_name"),
+    (
+        ("EGLL", "London Heathrow Airport"),
+        ("EGKK", "London Gatwick Airport"),
+        ("EGSS", "London Stansted Airport"),
+    ),
+)
+def test_airport_name_from_icao_code(icao_code: str, expected_name: str) -> None:
     """Test that the airport_name_from_icao_code function returns correct airport name."""
-    name = airport_name_from_icao_code("EGLL")  # London Heathrow
-    assert name == "London Heathrow Airport"
+    name = airport_name_from_icao_code(icao_code)
+    assert name == expected_name
