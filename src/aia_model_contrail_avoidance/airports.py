@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-__all__ = ["list_of_uk_airports", "uk_regional_flights"]
+__all__ = [
+    "airport_icao_code_to_location",
+    "airport_name_from_icao_code",
+    "list_of_uk_airports",
+    "uk_regional_flights",
+]
 
 import polars as pl
 
