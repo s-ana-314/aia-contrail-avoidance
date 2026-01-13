@@ -17,7 +17,7 @@ def list_of_uk_airports() -> list[str]:
 
     returns: list[str]: List of ICAO codes for UK airports.
     """
-    airport_data = pl.read_parquet("../airport_data/airports.parquet")
+    airport_data = pl.read_parquet("airport_data/airports.parquet")
     uk_airports = airport_data.filter(pl.col("iso_country") == "GB")
     return uk_airports["icao"].to_list()
 
@@ -39,16 +39,14 @@ def airport_icao_code_to_location(airport_icao_code: str) -> tuple[float, float]
 
     Returns: tuple[float, float]: (latitude, longitude) of the airport.
     """
-    airport_data = pl.read_parquet("../airport_data/airports.parquet")
-    airport_info = airport_data.filter(pl.col("icao") == airport_icao_code).select(
-        ["latitude_deg", "longitude_deg"]
-    )
+    airport_data = pl.read_parquet("airport_data/airports.parquet")
+    airport_info = airport_data.filter(pl.col("icao") == airport_icao_code).select(["lat", "lon"])
     if airport_info.is_empty():
         msg = f"Airport code {airport_icao_code} not found."
         raise ValueError(msg)
-    lat = airport_info["latitude_deg"][0]
-    lon = airport_info["longitude_deg"][0]
-    return lat, lon
+    lat = airport_info["lat"][0]
+    lon = airport_info["lon"][0]
+    return (lat, lon)
 
 
 def airport_name_from_icao_code(airport_icao_code: str) -> str:
@@ -60,7 +58,7 @@ def airport_name_from_icao_code(airport_icao_code: str) -> str:
     Returns:
         str: Name of the airport.
     """
-    airport_data = pl.read_parquet("../airport_data/airports.parquet")
+    airport_data = pl.read_parquet("airport_data/airports.parquet")
     airport_info = airport_data.filter(pl.col("icao") == airport_icao_code).select(["name"])
     if airport_info.is_empty():
         msg = f"Airport code {airport_icao_code} not found."
