@@ -12,12 +12,14 @@ from aia_model_contrail_avoidance.core_model.environment import (
 from aia_model_contrail_avoidance.core_model.flights import read_adsb_flight_dataframe
 
 
-def calculate_energy_forcing_for_flights(parquet_file_with_ef: str, output_file_name: str) -> None:
+def calculate_energy_forcing_for_flights(
+    parquet_file_with_ef: str, flight_info_with_ef_file_name: str
+) -> None:
     """Calculate energy forcing for flight data using the UK ADS-B January environment.
 
     Args:
-        parquet_file_with_ef: Path to save the flight data with energy forcing as a parquet file.
-        output_file_name: Path to save the energy forcing summary statistics as a parquet file.
+        parquet_file_with_ef: Path to save the flight timestamps with energy forcing as a parquet file.
+        flight_info_with_ef_file_name: Path to save the flight information with energy forcing as a parquet file.
     """
     # Load the processed flight data
     flight_dataframe = read_adsb_flight_dataframe()
@@ -67,22 +69,29 @@ def calculate_energy_forcing_for_flights(parquet_file_with_ef: str, output_file_
     )
     print(f"Processed {len(flight_data_with_ef)} data points")
 
-    # Calculate total energy forcing for each unique flight
-    unique_flight_ids = flight_data_with_ef["flight_id"].unique().to_list()
-    total_ef_list = calculate_total_energy_forcing(unique_flight_ids, flight_data_with_ef)
-
-    # Create a summary dataframes
-    ef_summary = pl.DataFrame(
-        {"flight_id": unique_flight_ids, "total_energy_forcing": total_ef_list}
-    )
-
-    # Save the full dataset with energy forcing
+    # Save the flight data with energy forcing to parquet
     flight_data_with_ef.write_parquet(
         "data/contrails_model_data/" + parquet_file_with_ef + ".parquet"
     )
 
-    # Save the summary dataframe
-    ef_summary.write_parquet("data/contrails_model_data/" + output_file_name + ".parquet")
+    # Calculate total energy forcing for each unique flight
+    unique_flight_ids = flight_data_with_ef["flight_id"].unique().to_list()
+    total_ef_list = calculate_total_energy_forcing(unique_flight_ids, flight_data_with_ef)
+
+    # Create a summary dataframe with flight information and total energy forcing
+    ef_summary = pl.DataFrame(
+        {"flight_id": unique_flight_ids, "total_energy_forcing": total_ef_list}
+    )
+
+    flight_info_df = pl.read_parquet("data/contrails_model_data/flight_info_database.parquet")
+
+    # Join the two dataframes on flight_id
+    joined_df = flight_info_df.join(ef_summary, on="flight_id", how="inner")
+
+    # Save the joined dataframe
+    joined_df.write_parquet(
+        "data/contrails_model_data/" + flight_info_with_ef_file_name + "_with_flight_info.parquet"
+    )
 
 
 if __name__ == "__main__":
