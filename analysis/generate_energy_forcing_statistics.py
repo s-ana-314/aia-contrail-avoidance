@@ -7,15 +7,24 @@ import json
 import numpy as np
 import polars as pl
 
+from aia_model_contrail_avoidance.core_model.dimensions import (
+    TemporalGranularity,
+    _get_temporal_grouping_field,
+    _get_temporal_range_and_labels,
+)
 
-def generate_energy_forcing_statistics(
-    parquet_file: str, output_filename: str | None = None
+
+def generate_energy_forcing_statistics(  # noqa: PLR0915
+    parquet_file: str,
+    output_filename: str | None = None,
+    temporal_granularity: TemporalGranularity = TemporalGranularity.HOURLY,
 ) -> None:
     """Generate energy forcing summary statistics including contrail formation analysis.
 
     Args:
         parquet_file: Path to the parquet file containing flight data with energy forcing.
         output_filename: Optional path to save the statistics as JSON. If None, no file is written.
+        temporal_granularity: Temporal granularity for aggregation (default: HOURLY).
 
     """
     # Load the flight data with energy forcing
@@ -67,56 +76,87 @@ def generate_energy_forcing_statistics(
         "counts": hist_counts.tolist(),
         "cumulative_counts": cumulative_counts.tolist(),
     }
-    # distance flown per hpour of the day
-    distance_flown_per_hour_histogram = None
+    # distance flown per temporal unit
+    distance_flown_per_temporal_histogram = None
     if (
         "timestamp" in flight_dataframe.columns
         and "distance_flown_in_segment" in flight_dataframe.columns
     ):
-        flight_dataframe_with_hour = flight_dataframe.with_columns(
-            pl.col("timestamp").dt.hour().alias("hour")
+        temporal_field = _get_temporal_grouping_field(temporal_granularity)
+        temporal_range, _labels = _get_temporal_range_and_labels(temporal_granularity)
+
+        flight_dataframe_with_temporal = flight_dataframe.with_columns(
+            pl.col("timestamp").dt.__getattribute__(temporal_field)().alias("temporal_unit")
         )
-        distance_per_hour = (
-            flight_dataframe_with_hour.group_by("hour")
+        distance_per_temporal = (
+            flight_dataframe_with_temporal.group_by("temporal_unit")
             .agg(pl.col("distance_flown_in_segment").sum())
             .to_dict(as_series=False)
         )
-        hour_to_distance = dict(
+        temporal_to_distance = dict(
             zip(
-                distance_per_hour["hour"],
-                distance_per_hour["distance_flown_in_segment"],
+                distance_per_temporal["temporal_unit"],
+                distance_per_temporal["distance_flown_in_segment"],
                 strict=True,
             )
         )
-        distance_flown_per_hour_histogram = {
-            str(hour): hour_to_distance.get(hour, 0) for hour in range(24)
+        distance_flown_per_temporal_histogram = {
+            str(unit): temporal_to_distance.get(unit, 0) for unit in temporal_range
         }
-    # histogram of distance forming contrails per hour of the day
+    # histogram of distance forming contrails per temporal unit (Default: HOURLY)
+    distance_forming_contrails_per_temporal_histogram = None
     if "timestamp" in contrail_forming_segments.columns:
-        contrail_forming_segments_with_hour = contrail_forming_segments.with_columns(
-            pl.col("timestamp").dt.hour().alias("hour")
+        temporal_field = _get_temporal_grouping_field(temporal_granularity)
+        temporal_range, _labels = _get_temporal_range_and_labels(temporal_granularity)
+
+        contrail_forming_segments_with_temporal = contrail_forming_segments.with_columns(
+            pl.col("timestamp").dt.__getattribute__(temporal_field)().alias("temporal_unit")
         )
 
-        distance_per_hour = (
-            contrail_forming_segments_with_hour.group_by("hour")
+        distance_per_temporal = (
+            contrail_forming_segments_with_temporal.group_by("temporal_unit")
             .agg(pl.col("distance_flown_in_segment").sum())
             .to_dict(as_series=False)
         )
 
-        hour_to_distance = dict(
+        temporal_to_distance = dict(
             zip(
-                distance_per_hour["hour"],
-                distance_per_hour["distance_flown_in_segment"],
+                distance_per_temporal["temporal_unit"],
+                distance_per_temporal["distance_flown_in_segment"],
                 strict=True,
             )
         )
 
-        # Ensure all hours 0-23 are present (fill missing hours with 0)
-        distance_forming_contrails_per_hour_histogram = {
-            str(hour): hour_to_distance.get(hour, 0) for hour in range(24)
+        # Ensure all temporal units are present (fill missing with 0)
+        distance_forming_contrails_per_temporal_histogram = {
+            str(unit): temporal_to_distance.get(unit, 0) for unit in temporal_range
         }
     else:
-        distance_forming_contrails_per_hour_histogram = None
+        distance_forming_contrails_per_temporal_histogram = None
+
+    # Air traffic density per temporal unit
+    # (number of unique flights per temporal unit)
+    air_traffic_density_per_temporal_histogram = None
+    if "timestamp" in flight_dataframe.columns:
+        temporal_field = _get_temporal_grouping_field(temporal_granularity)
+        temporal_range, _labels = _get_temporal_range_and_labels(temporal_granularity)
+
+        flight_dataframe_with_temporal = flight_dataframe.with_columns(
+            pl.col("timestamp").dt.__getattribute__(temporal_field)().alias("temporal_unit")
+        )
+        planes_per_temporal = (
+            flight_dataframe_with_temporal.group_by("temporal_unit")
+            .agg(pl.col("flight_id").n_unique())
+            .to_dict(as_series=False)
+        )
+        temporal_to_planes = dict(
+            zip(planes_per_temporal["temporal_unit"], planes_per_temporal["flight_id"], strict=True)
+        )
+        air_traffic_density_per_temporal_histogram = {
+            str(unit): temporal_to_planes.get(unit, 0) for unit in temporal_range
+        }
+    else:
+        air_traffic_density_per_temporal_histogram = None
 
     # --- Build Summary ---
     stats = {
@@ -145,8 +185,10 @@ def generate_energy_forcing_statistics(
         "energy_forcing_per_flight": {
             "histogram": ef_histogram,
         },
-        "distance_flown_per_hour_histogram": distance_flown_per_hour_histogram,
-        "distance_forming_contrails_per_hour_histogram": distance_forming_contrails_per_hour_histogram,
+        "temporal_granularity": temporal_granularity.value,
+        "distance_flown_per_temporal_histogram": distance_flown_per_temporal_histogram,
+        "distance_forming_contrails_per_temporal_histogram": distance_forming_contrails_per_temporal_histogram,
+        "air_traffic_density_per_temporal_histogram": air_traffic_density_per_temporal_histogram,
     }
 
     # --- Write Output ---
@@ -158,4 +200,4 @@ def generate_energy_forcing_statistics(
 if __name__ == "__main__":
     parquet_file = "2024_01_01_sample_with_ef"
     output_filename = "energy_forcing_statistics"
-    generate_energy_forcing_statistics(parquet_file, output_filename)
+    generate_energy_forcing_statistics(parquet_file, output_filename, TemporalGranularity.DAILY)
