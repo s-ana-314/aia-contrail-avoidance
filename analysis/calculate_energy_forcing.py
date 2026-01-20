@@ -15,20 +15,23 @@ from aia_model_contrail_avoidance.core_model.flights import read_adsb_flight_dat
 def calculate_energy_forcing_for_flights(
     parquet_file_with_ef: str,
     flight_info_with_ef_file_name: str,
-    flight_dataframe: str | None = None,
+    flight_dataframe_path: str | None = None,
 ) -> None:
     """Calculate energy forcing for flight data using the UK ADS-B January environment.
 
     Args:
-        parquet_file_with_ef: Path to save the flight timestamps with energy forcing as a parquet file.
-        flight_info_with_ef_file_name: Path to save the flight information with energy forcing as a parquet file.
-        flight_dataframe: Optional Polars DataFrame containing flight data. If None, it will be read from a parquet file.
+        parquet_file_with_ef: Path to save the flight timestamps with energy forcing as a parquet
+            file.
+        flight_info_with_ef_file_name: Path to save the flight information with energy forcing as a
+            parquet file.
+        flight_dataframe_path: Optional path to a Polars DataFrame containing flight data. If None,
+        it will be read from a parquet file.
     """
     # Load the processed flight data
-    if flight_dataframe is None:
+    if flight_dataframe_path is None:
         flight_dataframe = read_adsb_flight_dataframe()
     else:
-        flight_dataframe = pl.read_parquet(flight_dataframe)
+        flight_dataframe = pl.read_parquet(flight_dataframe_path)
 
     distance_traveled_tolerance_in_meters = 2000
 
@@ -103,9 +106,9 @@ def calculate_energy_forcing_for_flights(
 if __name__ == "__main__":
     parquet_file_with_ef = "test_2024_01_01_sample_with_ef"
     output_file_name = "test_flight_energy_forcing_summary"
-    flight_dataframe = "data/contrails_model_data/test_flights_database.parquet"
+    flight_dataframe_path = "data/contrails_model_data/test_flights_database.parquet"
     calculate_energy_forcing_for_flights(
         parquet_file_with_ef,
         output_file_name,
-        flight_dataframe,
+        flight_dataframe_path=flight_dataframe_path,
     )
