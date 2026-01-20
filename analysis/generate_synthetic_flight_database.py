@@ -1,5 +1,7 @@
 """Docstring for analysis.geenerate_synthetic_flight_database."""  # noqa: INP001
 
+from __future__ import annotations
+
 import datetime
 from typing import Any
 

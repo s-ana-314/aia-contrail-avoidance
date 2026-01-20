@@ -60,7 +60,7 @@ def generate_synthetic_flight(  # noqa: PLR0913
         for i in range(number_of_timestamps)
     ]
 
-    df = pl.DataFrame(
+    return pl.DataFrame(
         {
             "flight_id": np.full(number_of_timestamps, flight_id, dtype=int),
             "departure_location": [list(departure_location)] * number_of_timestamps,
@@ -74,8 +74,6 @@ def generate_synthetic_flight(  # noqa: PLR0913
         },
         schema=FLIGHT_DATAFRAME_SCHEMA,
     )
-
-    return df
 
 
 def flight_distance_from_location(
