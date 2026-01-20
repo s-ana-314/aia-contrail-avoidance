@@ -1,6 +1,7 @@
 """Docstring for analysis.geenerate_synthetic_flight_database."""  # noqa: INP001
 
 import datetime
+from typing import Any
 
 import polars as pl
 
@@ -8,9 +9,11 @@ from aia_model_contrail_avoidance.core_model.airports import airport_icao_code_t
 from aia_model_contrail_avoidance.core_model.flights import generate_synthetic_flight
 
 
-def generate_synthetic_flight_database(flight_info_list: list[dict], database_name: str) -> None:
+def generate_synthetic_flight_database(
+    flight_info_list: list[dict[str, Any]], database_name: str
+) -> None:
     """Generate a synthetic flight database for testing purposes."""
-    flight_dataframe = None
+    flight_dataframe = pl.DataFrame()
 
     for flight_info in flight_info_list:
         new_flight = generate_synthetic_flight(
@@ -22,10 +25,7 @@ def generate_synthetic_flight_database(flight_info_list: list[dict], database_na
             flight_info["flight_level"],
         )
 
-        if flight_dataframe is None:
-            flight_dataframe = new_flight
-        else:
-            flight_dataframe = pl.concat([flight_dataframe, new_flight], how="vertical")
+        flight_dataframe = pl.concat([flight_dataframe, new_flight], how="vertical")
 
     flight_dataframe.write_parquet(f"data/contrails_model_data/{database_name}.parquet")
 
