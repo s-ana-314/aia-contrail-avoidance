@@ -9,11 +9,16 @@ __all__ = (
 )
 
 import datetime
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import polars as pl
 
-FLIGHT_DATAFRAME_SCHEMA = {
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+
+FLIGHT_DATAFRAME_SCHEMA: Mapping[str, Any] = {
     "flight_id": pl.Int64,
     "departure_location": pl.List(pl.Float64),
     "arrival_location": pl.List(pl.Float64),
