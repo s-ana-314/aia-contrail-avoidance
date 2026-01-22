@@ -275,9 +275,18 @@ def generate_flight_info_database(processed_parquet_filename: str, save_filename
 
 
 if __name__ == "__main__":
-    dataframe = generate_flight_dataframe_from_adsb_data()
-    save_filename = "2024_01_01_sample_processed"
+    parquet_file_path = "data/flight_data/2024_01_01_sample.parquet"
+    save_filename = "2024_01_01_sample_processed_with_interpolation"
+    temporal_flight_subset = TemporalFlightSubset.FIRST_MONTH
+    flight_departure_and_arrival = FlightDepartureAndArrivalSubset.UK
 
-    process_adsb_flight_data(dataframe, save_filename)
+    dataframe = generate_flight_dataframe_from_adsb_data(parquet_file_path)
+
+    selected_dataframe = select_subset_of_adsb_flight_data(
+        dataframe, flight_departure_and_arrival, temporal_flight_subset
+    )
+    cleaned_dataframe = clean_adsb_flight_dataframe(selected_dataframe)
+
+    process_adsb_flight_data_for_environment(cleaned_dataframe, save_filename)
 
     generate_flight_info_database(save_filename, "flight_info_database")
