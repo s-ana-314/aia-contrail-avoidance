@@ -49,8 +49,67 @@ def generate_flight_dataframe_from_adsb_data(parquet_file_path: str) -> pl.DataF
         "departure_airport_icao",
         "arrival_airport_icao",
     ]
-    flight_dataframe = flight_dataframe.select(needed_columns)
 
+    return flight_dataframe.select(needed_columns)
+
+
+def select_subset_of_adsb_flight_data(
+    flight_dataframe: pl.DataFrame,
+    departure_and_arrival_subset: FlightDepartureAndArrivalSubset,
+    temporal_subset: TemporalFlightSubset,
+) -> pl.DataFrame:
+    """Selects a subset of columns from the ADS-B flight data DataFrame.
+
+    Args:
+        flight_dataframe: DataFrame containing ADS-B flight data.
+        departure_and_arrival_subset: Enum specifying the departure and arrival airport subset.
+        temporal_subset: Enum specifying the temporal subset of the data.
+
+    Returns:
+        DataFrame containing a subset of the original ADS-B flight data.
+    """
+    if temporal_subset == TemporalFlightSubset.FIRST_MONTH:
+        flight_dataframe = flight_dataframe.filter(
+            (pl.col("timestamp") >= pl.datetime(2024, 1, 1, time_zone="UTC"))
+            & (pl.col("timestamp") < pl.datetime(2024, 2, 1, time_zone="UTC"))
+        )
+
+    if departure_and_arrival_subset == FlightDepartureAndArrivalSubset.UK:
+        uk_airport_icaos = list_of_uk_airports()
+        flight_dataframe = flight_dataframe.filter(
+            pl.col("arrival_airport_icao").is_in(uk_airport_icaos)
+            | pl.col("departure_airport_icao").is_in(uk_airport_icaos)
+        )
+
+    elif departure_and_arrival_subset == FlightDepartureAndArrivalSubset.REGIONAL:
+        uk_airport_icaos = list_of_uk_airports()
+        flight_dataframe = flight_dataframe.filter(
+            pl.col("arrival_airport_icao").is_in(uk_airport_icaos)
+            & pl.col("departure_airport_icao").is_in(uk_airport_icaos)
+        )
+
+    return flight_dataframe
+
+
+def clean_adsb_flight_dataframe(flight_dataframe: pl.DataFrame) -> pl.DataFrame:
+    """Cleans the flight DataFrame by adding necessary columns and removing unnecessary ones.
+
+    New columns added:
+    - flight_level: Altitude of aircraft in term of flight levels (altitude_baro divided by 100)
+    - distance_flown_in_segment: Distance traveled in meters between consecutive datapoints for the
+        same flight
+
+    Augmented rows:
+    - For any row where distance_flown_in_segment exceeds a threshold (e.g. 50 nautical miles), new
+        rows are generated with interpolated values for latitude, longitude, and timestamp to ensure
+        no segment exceeds the threshold.
+
+    Args:
+        flight_dataframe: DataFrame containing ADS-B flight data.
+
+    Returns:
+        Cleaned DataFrame with added columns.
+    """
     # Divide altitude_baro by 100 to convert from pha to flight level
     flight_dataframe = flight_dataframe.with_columns(
         (pl.col("altitude_baro") // 100.0).alias("flight_level")
