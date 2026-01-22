@@ -4,22 +4,36 @@ from __future__ import annotations
 
 import polars as pl
 
+from aia_model_contrail_avoidance.config import ADS_B_SCHEMA_CLEANED
+from aia_model_contrail_avoidance.core_model.airports import list_of_uk_airports
 from aia_model_contrail_avoidance.core_model.flights import flight_distance_from_location
 
 
-def generate_flight_dataframe_from_adsb_data() -> pl.DataFrame:
-    """Reads ADS-B flight data into a DataFrame and creates new columns required for analysis.
+class FlightDepartureAndArrivalSubset(enum.Enum):
+    """Enum for selecting subsets of flight data based on departure and arrival airports."""
 
-    New columns added:
-    - flight_level: Altitude in flight levels (altitude_baro divided by 100)
-    - distance_flown_in_segment: Distance traveled in meters between consecutive datapoints for the same flight
+    ALL = "all"
+    UK = "flights to and from the UK"
+    REGIONAL = "regional"
+
+
+class TemporalFlightSubset(enum.Enum):
+    """Enum for selecting subsets of flight data based on time periods."""
+
+    ALL = "all"
+    FIRST_MONTH = "first_month"
+
+
+def generate_flight_dataframe_from_adsb_data(parquet_file_path: str) -> pl.DataFrame:
+    """Reads ADS-B flight data into a DataFrame and removes unnecessary columns.
+
+    Args:
+        parquet_file_path: Path to the parquet file containing ADS-B flight data.
 
     Returns:
         DataFrame containing ADS-B flight data.
     """
-    parquet_file = "../flight-data/2024_01_01_sample.parquet"
-    flight_dataframe = pl.read_parquet(parquet_file)
-    # keep needed columns only
+    flight_dataframe = pl.read_parquet(parquet_file_path)
     needed_columns = [
         "timestamp",
         "latitude",
