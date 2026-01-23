@@ -5,6 +5,7 @@ repo_name: AIA Model Contrial Avoidance
 
 nav:
   - index.md
+  - creating_cosip_grid.md
 
 theme:
   name: material
