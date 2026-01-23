@@ -111,7 +111,7 @@ def most_common_cruise_flight_level() -> int:
     return 300
 
 
-def read_adsb_flight_dataframe() -> pl.DataFrame:
+def read_ads_b_flight_dataframe() -> pl.DataFrame:
     """Read the pre-processed ADS-B flight data from a parquet file."""
     parquet_file = "data/contrails_model_data/2024_01_01_sample_processed.parquet"
     return pl.read_parquet(parquet_file)

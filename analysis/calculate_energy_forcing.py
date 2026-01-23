@@ -6,10 +6,10 @@ import polars as pl
 
 from aia_model_contrail_avoidance.core_model.environment import (
     calculate_total_energy_forcing,
-    create_grid_environment_uk_adsb_jan,
+    create_grid_environment_uk_ads_b_jan,
     run_flight_data_through_environment,
 )
-from aia_model_contrail_avoidance.core_model.flights import read_adsb_flight_dataframe
+from aia_model_contrail_avoidance.core_model.flights import read_ads_b_flight_dataframe
 
 
 def calculate_energy_forcing_for_flights(
@@ -29,7 +29,7 @@ def calculate_energy_forcing_for_flights(
     """
     # Load the processed flight data
     if flight_dataframe_path is None:
-        flight_dataframe = read_adsb_flight_dataframe()
+        flight_dataframe = read_ads_b_flight_dataframe()
     else:
         flight_dataframe = pl.read_parquet(flight_dataframe_path)
 
@@ -70,7 +70,7 @@ def calculate_energy_forcing_for_flights(
     )
 
     print("Loading environment data...")
-    environment = create_grid_environment_uk_adsb_jan()
+    environment = create_grid_environment_uk_ads_b_jan()
 
     print("\nRunning flight data through environment...")
     flight_data_with_ef = run_flight_data_through_environment(
