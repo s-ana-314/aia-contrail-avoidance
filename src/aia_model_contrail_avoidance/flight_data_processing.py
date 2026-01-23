@@ -1,4 +1,4 @@
-"""Processing flight data from ADS-B sources into dataframes suitable for contrail modeling."""  # noqa: INP001
+"""Processing flight data from ADS-B sources into dataframes suitable for contrail modeling."""
 
 from __future__ import annotations
 
@@ -12,6 +12,10 @@ import polars as pl
 from aia_model_contrail_avoidance.config import ADS_B_SCHEMA_CLEANED
 from aia_model_contrail_avoidance.core_model.airports import list_of_uk_airports
 from aia_model_contrail_avoidance.core_model.flights import flight_distance_from_location
+
+# Global constants and enums for flight data processing
+MAX_DISTANCE_BETWEEN_FLIGHT_TIMESTAMPS = 50.0  # nautical miles
+LOW_FLIGHT_LEVEL_THRESHOLD = 20.0  # flight level 20 = 2000 feet
 
 
 class FlightDepartureAndArrivalSubset(enum.Enum):
@@ -29,7 +33,33 @@ class TemporalFlightSubset(enum.Enum):
     FIRST_MONTH = "first_month"
 
 
-def generate_flight_dataframe_from_adsb_data(parquet_file_path: str) -> pl.DataFrame:
+def process_ads_b_flight_data(
+    parquet_file_path: str,
+    save_filename: str,
+    departure_and_arrival_subset: FlightDepartureAndArrivalSubset,
+    temporal_subset: TemporalFlightSubset,
+) -> None:
+    """Processes ADS-B flight data from a parquet file and saves the cleaned DataFrame.
+
+    Args:
+        parquet_file_path: Path to the parquet file containing ADS-B flight data.
+        save_filename: Filename (without extension) to save the processed DataFrame.
+        departure_and_arrival_subset: Enum specifying the departure and arrival airport subset.
+        temporal_subset: Enum specifying the temporal subset of the data.
+    """
+    dataframe = generate_flight_dataframe_from_ads_b_data(parquet_file_path)
+
+    selected_dataframe = select_subset_of_ads_b_flight_data(
+        dataframe, departure_and_arrival_subset, temporal_subset
+    )
+    cleaned_dataframe = clean_ads_b_flight_dataframe(selected_dataframe)
+
+    process_ads_b_flight_data_for_environment(cleaned_dataframe, save_filename)
+
+    generate_flight_info_database(save_filename, "flight_info_database")
+
+
+def generate_flight_dataframe_from_ads_b_data(parquet_file_path: str) -> pl.DataFrame:
     """Reads ADS-B flight data into a DataFrame and removes unnecessary columns.
 
     Args:
@@ -49,11 +79,12 @@ def generate_flight_dataframe_from_adsb_data(parquet_file_path: str) -> pl.DataF
         "departure_airport_icao",
         "arrival_airport_icao",
     ]
+    print(f"INFO: Loaded flight dataframe with {len(flight_dataframe)} rows.")
 
     return flight_dataframe.select(needed_columns)
 
 
-def select_subset_of_adsb_flight_data(
+def select_subset_of_ads_b_flight_data(
     flight_dataframe: pl.DataFrame,
     departure_and_arrival_subset: FlightDepartureAndArrivalSubset,
     temporal_subset: TemporalFlightSubset,
@@ -88,10 +119,11 @@ def select_subset_of_adsb_flight_data(
             & pl.col("departure_airport_icao").is_in(uk_airport_icaos)
         )
 
+    print(f"INFO: After selecting subsets, the flight dataframe has {len(flight_dataframe)} rows.")
     return flight_dataframe
 
 
-def clean_adsb_flight_dataframe(flight_dataframe: pl.DataFrame) -> pl.DataFrame:
+def clean_ads_b_flight_dataframe(flight_dataframe: pl.DataFrame) -> pl.DataFrame:
     """Cleans the flight DataFrame by adding necessary columns and removing unnecessary ones.
 
     New columns added:
@@ -165,16 +197,15 @@ def clean_adsb_flight_dataframe(flight_dataframe: pl.DataFrame) -> pl.DataFrame:
         ]
     )
     # for large distance_flown_in_segment, create new rows with interpolated values
-    max_distance = 50.0  # nautical miles
     flight_dataframe = generate_interpolated_rows_of_large_distance_flights(
-        flight_dataframe, max_distance=max_distance
+        flight_dataframe, max_distance=MAX_DISTANCE_BETWEEN_FLIGHT_TIMESTAMPS
     )
     print(f"INFO: After cleaning, the flight dataframe has {len(flight_dataframe)} rows.")
     return flight_dataframe
 
 
 def generate_interpolated_rows_of_large_distance_flights(
-    flight_dataframe: pl.DataFrame, max_distance: float = 10.0
+    flight_dataframe: pl.DataFrame, max_distance: float = 50.0
 ) -> pl.DataFrame:
     """Generates interpolated rows for flights with large distance flown in segment.
 
@@ -220,7 +251,7 @@ def generate_interpolated_rows_of_large_distance_flights(
     return flight_dataframe
 
 
-def process_adsb_flight_data_for_environment(
+def process_ads_b_flight_data_for_environment(
     generated_dataframe: pl.DataFrame, save_filename: str
 ) -> None:
     """Process ADS-B flight data and save cleaned DataFrame to parquet.
@@ -232,9 +263,9 @@ def process_adsb_flight_data_for_environment(
         save_filename: Filename (without extension) to save the processed DataFrame.
     """
     # Remove datapoints where flight level is none or negative
-    low_flight_level = 20.0  # flight level 20 = 2000 feet
     dataframe_processed = generated_dataframe.filter(
-        pl.col("flight_level").is_not_null() & (pl.col("flight_level") >= low_flight_level)
+        pl.col("flight_level").is_not_null()
+        & (pl.col("flight_level") >= LOW_FLIGHT_LEVEL_THRESHOLD)
     )
 
     # percentage of datapoints removed
@@ -272,21 +303,3 @@ def generate_flight_info_database(processed_parquet_filename: str, save_filename
 
     # Save flight information database to parquet
     flight_info_df.write_parquet("data/contrails_model_data/" + save_filename + ".parquet")
-
-
-if __name__ == "__main__":
-    parquet_file_path = "data/flight_data/2024_01_01_sample.parquet"
-    save_filename = "2024_01_01_sample_processed_with_interpolation"
-    temporal_flight_subset = TemporalFlightSubset.FIRST_MONTH
-    flight_departure_and_arrival = FlightDepartureAndArrivalSubset.UK
-
-    dataframe = generate_flight_dataframe_from_adsb_data(parquet_file_path)
-
-    selected_dataframe = select_subset_of_adsb_flight_data(
-        dataframe, flight_departure_and_arrival, temporal_flight_subset
-    )
-    cleaned_dataframe = clean_adsb_flight_dataframe(selected_dataframe)
-
-    process_adsb_flight_data_for_environment(cleaned_dataframe, save_filename)
-
-    generate_flight_info_database(save_filename, "flight_info_database")
