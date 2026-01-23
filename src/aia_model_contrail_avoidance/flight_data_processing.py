@@ -1,4 +1,4 @@
-"""Processing flight data from ADS-B sources into dataframes suitable for contrail modeling."""  # noqa: INP001
+"""Processing flight data from ADS-B sources into dataframes suitable for contrail modeling."""
 
 from __future__ import annotations
 
