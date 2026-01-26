@@ -9,7 +9,7 @@ from plot_uk_airspace import generate_uk_airspace_geoaxes
 from traffic.data import eurofirs
 
 
-def get_gb_airspaces() -> list:
+def get_gb_airspaces() -> list:  # type: ignore[type-arg]
     """Retrieve airspace data for Great Britain FIRs."""
     # Select FIRs by their 'designator' attribute
     selected = []
@@ -19,7 +19,7 @@ def get_gb_airspaces() -> list:
     return selected
 
 
-def plot_airspace_polygons(airspaces: list) -> None:
+def plot_airspace_polygons(airspaces: list) -> None:  # type: ignore[type-arg]
     """Plot airspace polygons for given FIRs."""
     uk_airspace_environmental_bounds = {
         "lat_min": 44.0,
@@ -48,7 +48,10 @@ def plot_airspace_polygons(airspaces: list) -> None:
     plt.savefig("results/plots/gb_airspace_polygons.png", dpi=300, bbox_inches="tight")
 
 
-def find_airspace_of_flight_segment(flight_dataframe_path: str, airspaces: list) -> pl.DataFrame:
+def find_airspace_of_flight_segment(
+    flight_dataframe_path: str,
+    airspaces: list,  # type: ignore[type-arg]
+) -> pl.DataFrame:
     """Check if a given datapoint is within any of the provided airspaces."""
     flight_dataframe = pl.read_parquet(flight_dataframe_path)
 
@@ -56,11 +59,11 @@ def find_airspace_of_flight_segment(flight_dataframe_path: str, airspaces: list)
 
     # add new column indicating the name of the airspace if the point is within any airspace
     return flight_dataframe.with_columns(
-        pl.Series("airspace", is_point_in_airspaces(points, airspaces))
+        pl.Series("airspace", is_point_in_airspaces(points, airspaces))  # type: ignore[arg-type]
     )
 
 
-def is_point_in_airspaces(points: shapely.Point, airspaces: list) -> list:
+def is_point_in_airspaces(points: list[shapely.Point], airspaces: list) -> list[str | None]:  # type: ignore[type-arg]
     """Check if points are within any of the provided airspaces."""
     names = []
     for point in points:
