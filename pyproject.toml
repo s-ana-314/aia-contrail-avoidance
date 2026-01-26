@@ -19,6 +19,7 @@ dependencies = [
     "basemap>=2.0.0",
     "polars>=1.36.1",
     "traffic>=2.13",
+    "types-shapely>=2.1.0.20250917",
 ]
 
 [project.urls]
