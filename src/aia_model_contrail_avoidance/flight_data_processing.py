@@ -14,7 +14,7 @@ from aia_model_contrail_avoidance.core_model.airports import list_of_uk_airports
 from aia_model_contrail_avoidance.core_model.flights import flight_distance_from_location
 
 # Global constants and enums for flight data processing
-MAX_DISTANCE_BETWEEN_FLIGHT_TIMESTAMPS = 50.0  # nautical miles
+MAX_DISTANCE_BETWEEN_FLIGHT_TIMESTAMPS = 3.0  # nautical miles
 LOW_FLIGHT_LEVEL_THRESHOLD = 20.0  # flight level 20 = 2000 feet
 
 
@@ -175,8 +175,8 @@ def clean_ads_b_flight_dataframe(flight_dataframe: pl.DataFrame) -> pl.DataFrame
     flight_dataframe = flight_dataframe.with_columns(
         pl.Series("distance_flown_in_segment", distances)
     ).drop(["prev_lat", "prev_lon"])
-    # remove columns where distance_flown_in_segment is null
-    flight_dataframe = flight_dataframe.filter(pl.col("distance_flown_in_segment").is_not_null())
+    # remove columns where distance_flown_in_segment is zero
+    flight_dataframe = flight_dataframe.filter(pl.col("distance_flown_in_segment") > 0)
 
     # fill altitude nulls with previous value for that flight
     flight_dataframe = flight_dataframe.with_columns(
@@ -200,12 +200,28 @@ def clean_ads_b_flight_dataframe(flight_dataframe: pl.DataFrame) -> pl.DataFrame
     flight_dataframe = generate_interpolated_rows_of_large_distance_flights(
         flight_dataframe, max_distance=MAX_DISTANCE_BETWEEN_FLIGHT_TIMESTAMPS
     )
-    print(f"INFO: After cleaning, the flight dataframe has {len(flight_dataframe)} rows.")
+    length_after_cleaning = len(flight_dataframe)
+    print(f"INFO: After cleaning, the flight dataframe has {length_after_cleaning} rows.")
+
+    # Merge datapoints that are very close together in space (the sum of their distances to previous and next points is less than the threshold)
+
+    flight_dataframe = merge_close_datapoints_of_flight(
+        flight_dataframe, MAX_DISTANCE_BETWEEN_FLIGHT_TIMESTAMPS
+    )
+
+    length_after_merging = len(flight_dataframe)
+    print(
+        f"INFO: After merging very close points, the flight dataframe has {length_after_merging} rows."
+    )
+    print(
+        f"INFO: Total of {length_after_cleaning - length_after_merging} rows removed by merging very close points."
+    )
+
     return flight_dataframe
 
 
 def generate_interpolated_rows_of_large_distance_flights(
-    flight_dataframe: pl.DataFrame, max_distance: float = 50.0
+    flight_dataframe: pl.DataFrame, max_distance: float = 15.0
 ) -> pl.DataFrame:
     """Generates interpolated rows for flights with large distance flown in segment.
 
@@ -246,9 +262,14 @@ def generate_interpolated_rows_of_large_distance_flights(
                 },
                 schema=ADS_B_SCHEMA_CLEANED,
             )
+
+            # add new rows to dataframe
             flight_dataframe = pl.concat([flight_dataframe, rows_to_add], how="vertical")
         previous_row = row
-    return flight_dataframe
+    # remove datapoints where distance_flown_in_segment exceeds max_distance
+    flight_dataframe = flight_dataframe.filter(pl.col("distance_flown_in_segment") <= max_distance)
+    # sort by flight_id and timestamp
+    return flight_dataframe.sort(["flight_id", "timestamp"])
 
 
 def process_ads_b_flight_data_for_environment(
@@ -303,3 +324,39 @@ def generate_flight_info_database(processed_parquet_filename: str, save_filename
 
     # Save flight information database to parquet
     flight_info_df.write_parquet("data/contrails_model_data/" + save_filename + ".parquet")
+
+
+def merge_close_datapoints_of_flight(
+    flight_dataframe: pl.DataFrame,
+    distance_threshold: float,
+) -> pl.DataFrame:
+    """Merges close datapoints of a flight based on distance threshold.
+
+    Args:
+        flight_dataframe: DataFrame containing ADS-B flight data.
+        distance_threshold: Distance threshold in nautical miles for merging datapoints.
+
+    Returns:
+        DataFrame with merged datapoints.
+    """
+    rows = list(flight_dataframe.iter_rows(named=True))
+    min_n_rows = 2
+    if len(rows) < min_n_rows:
+        return flight_dataframe
+
+    merged_rows = [rows[0]]
+    for i in range(1, len(rows)):
+        previous_row = merged_rows[-1]
+        current_row = rows[i]
+        # Only merge if flight_id matches and sum does not exceed threshold
+        if (
+            previous_row["flight_id"] == current_row["flight_id"]
+            and previous_row["distance_flown_in_segment"] + current_row["distance_flown_in_segment"]
+            <= distance_threshold
+        ):
+            # Merge: add current segment to previous
+            current_row["distance_flown_in_segment"] += previous_row["distance_flown_in_segment"]
+            merged_rows[-1] = current_row
+        else:
+            merged_rows.append(current_row)
+    return pl.DataFrame(merged_rows, schema=flight_dataframe.schema)
