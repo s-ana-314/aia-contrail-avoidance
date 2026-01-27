@@ -7,6 +7,7 @@ import json
 import numpy as np
 import polars as pl
 
+from aia_model_contrail_avoidance.core_model.airports import list_of_uk_airports
 from aia_model_contrail_avoidance.core_model.dimensions import (
     TemporalGranularity,
     _get_temporal_grouping_field,
@@ -37,6 +38,21 @@ def generate_energy_forcing_statistics(  # noqa: PLR0915
     # Calculate total distance flown
     total_distance_flown = flight_dataframe["distance_flown_in_segment"].sum()
 
+    # -- Airspace Specific Statistics ---
+    uk_airspace_segments = flight_dataframe.filter(pl.col("airspace").is_not_null())
+    total_energy_forcing_in_uk_airspace = uk_airspace_segments["ef"].sum()
+
+    international_airspace_segments = flight_dataframe.filter(pl.col("airspace").is_null())
+    total_energy_forcing_in_international_airspace = international_airspace_segments["ef"].sum()
+
+    # Regional vs International Flights
+    uk_airports = list_of_uk_airports()
+    regional_flights_df = flight_dataframe.filter(
+        pl.col("arrival_airport_icao").is_in(uk_airports)
+        & pl.col("departure_airport_icao").is_in(uk_airports)
+    )
+    number_of_regional_flights = regional_flights_df["flight_id"].n_unique()
+    number_of_international_flights = total_flights - number_of_regional_flights
     # --- Contrail Formation Analysis ---
 
     # Segments with positive energy forcing are forming contrails
@@ -163,9 +179,6 @@ def generate_energy_forcing_statistics(  # noqa: PLR0915
         "file_name": parquet_file,
         "overview": {
             "total_datapoints": total_datapoints,
-            "total_flights": total_flights,
-            "total_distance_flown_nm": float(total_distance_flown),
-            "total_energy_forcing": float(total_energy_forcing),
         },
         "contrail_formation": {
             "flights_forming_contrails": int(flights_forming_contrails),
@@ -174,6 +187,23 @@ def generate_energy_forcing_statistics(  # noqa: PLR0915
             "percentage_distance_forming_contrails": round(
                 percentage_distance_forming_contrails, 2
             ),
+        },
+        "number_of_flights": {
+            "total": total_flights,
+            "Regional": number_of_regional_flights,
+            "international": number_of_international_flights,
+        },
+        "flight_distance_by_airspace": {
+            "total_nm": float(total_distance_flown),
+            "uk_airspace_nm": float(uk_airspace_segments["distance_flown_in_segment"].sum()),
+            "international_airspace_nm": float(
+                international_airspace_segments["distance_flown_in_segment"].sum()
+            ),
+        },
+        "energy_forcing": {
+            "total": float(total_energy_forcing),
+            "uk_airspace": total_energy_forcing_in_uk_airspace,
+            "international_airspace": total_energy_forcing_in_international_airspace,
         },
         "energy_forcing_per_segment": {
             "mean": mean_energy_forcing_per_segment,
@@ -198,6 +228,6 @@ def generate_energy_forcing_statistics(  # noqa: PLR0915
 
 
 if __name__ == "__main__":
-    parquet_file = "2024_01_01_sample_with_ef"
-    output_filename = "energy_forcing_statistics"
-    generate_energy_forcing_statistics(parquet_file, output_filename, TemporalGranularity.DAILY)
+    parquet_file = "2024_01_01_sample_processed_with_interpolation_with_ef"
+    output_filename = "energy_forcing_statistics_sample_2024_01_01_hourly"
+    generate_energy_forcing_statistics(parquet_file, output_filename, TemporalGranularity.HOURLY)
