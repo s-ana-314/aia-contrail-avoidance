@@ -4,9 +4,13 @@ from __future__ import annotations
 
 import polars as pl
 
+from aia_model_contrail_avoidance.core_model.airspace import (
+    find_airspace_of_flight_segment,
+    get_gb_airspaces,
+)
 from aia_model_contrail_avoidance.core_model.environment import (
     calculate_total_energy_forcing,
-    create_grid_environment_uk_ads_b_jan,
+    create_grid_environment,
     run_flight_data_through_environment,
 )
 from aia_model_contrail_avoidance.core_model.flights import read_ads_b_flight_dataframe
@@ -33,8 +37,10 @@ def calculate_energy_forcing_for_flights(
     else:
         flight_dataframe = pl.read_parquet(flight_dataframe_path)
 
-    distance_traveled_tolerance_in_meters = 2000
+    print("Loading environment data...")
+    environment = create_grid_environment("cocipgrid_uk_adsb_jan_result")
 
+    # environmental bounds for UK ADS-B January environment
     environmental_bounds = {
         "lat_min": 49.0,
         "lat_max": 62.0,
@@ -42,41 +48,21 @@ def calculate_energy_forcing_for_flights(
         "lon_max": 3.0,
     }
 
-    # Remove datapoints where distance_traveled_in_segment is > tolerance (2000 m)
-    flight_dataframe_without_large_distance_segments = flight_dataframe.filter(
-        pl.col("distance_flown_in_segment") <= distance_traveled_tolerance_in_meters
-    )
-
-    # Remove datapoints that are outside the UK FIR (latitude and longitude bounds)
-    flight_dataframe_in_uk_airspace = flight_dataframe_without_large_distance_segments.filter(
+    # Remove datapoints that are outside the environment (latitude and longitude bounds)
+    flight_dataframe = flight_dataframe.filter(
         (pl.col("latitude") >= environmental_bounds["lat_min"])
         & (pl.col("latitude") <= environmental_bounds["lat_max"])
         & (pl.col("longitude") >= environmental_bounds["lon_min"])
         & (pl.col("longitude") <= environmental_bounds["lon_max"])
     )
-    # informative statistics
-    percentage_removed_due_to_large_distances_flown = 100 * (
-        1 - len(flight_dataframe_without_large_distance_segments) / len(flight_dataframe)
-    )
-    percentage_removed_due_to_uk_airspace = 100 * (
-        1 - len(flight_dataframe_in_uk_airspace) / len(flight_dataframe)
-    )
-
-    print(
-        f"INFO: Removed {percentage_removed_due_to_large_distances_flown:.2f}% of data points due to large distances flown in segment (> {distance_traveled_tolerance_in_meters} m)"
-    )
-    print(
-        f"INFO: Removed {percentage_removed_due_to_uk_airspace:.2f}% of data points outside UK airspace"
-    )
-
-    print("Loading environment data...")
-    environment = create_grid_environment_uk_ads_b_jan()
-
     print("\nRunning flight data through environment...")
-    flight_data_with_ef = run_flight_data_through_environment(
-        flight_dataframe_in_uk_airspace, environment
-    )
+    flight_data_with_ef = run_flight_data_through_environment(flight_dataframe, environment)
     print(f"Processed {len(flight_data_with_ef)} data points")
+
+    # adding airspace information to dataframe
+    gb_airspaces = get_gb_airspaces()
+    flight_data_with_ef = find_airspace_of_flight_segment(flight_data_with_ef, gb_airspaces)
+    print("Added airspace information to flight data.")
 
     # Save the flight data with energy forcing to parquet
     flight_data_with_ef.write_parquet(
@@ -88,14 +74,14 @@ def calculate_energy_forcing_for_flights(
     total_ef_list = calculate_total_energy_forcing(unique_flight_ids, flight_data_with_ef)
 
     # Create a summary dataframe with flight information and total energy forcing
-    ef_summary = pl.DataFrame(
+    energy_forcing_per_flight = pl.DataFrame(
         {"flight_id": unique_flight_ids, "total_energy_forcing": total_ef_list}
     )
 
     flight_info_df = pl.read_parquet("data/contrails_model_data/flight_info_database.parquet")
 
     # Join the two dataframes on flight_id
-    joined_df = flight_info_df.join(ef_summary, on="flight_id", how="inner")
+    joined_df = flight_info_df.join(energy_forcing_per_flight, on="flight_id", how="inner")
 
     # Save the joined dataframe
     joined_df.write_parquet(
@@ -104,9 +90,11 @@ def calculate_energy_forcing_for_flights(
 
 
 if __name__ == "__main__":
-    parquet_file_with_ef = "test_2024_01_01_sample_with_ef"
-    output_file_name = "test_flight_energy_forcing_summary"
-    flight_dataframe_path = "data/contrails_model_data/test_flights_database.parquet"
+    parquet_file_with_ef = "2024_01_01_sample_processed_with_interpolation_with_ef"
+    output_file_name = "2024_01_01_sample_processed_with_interpolation_energy_forcing_summary"
+    flight_dataframe_path = (
+        "data/contrails_model_data/2024_01_01_sample_processed_with_interpolation.parquet"
+    )
     calculate_energy_forcing_for_flights(
         parquet_file_with_ef,
         output_file_name,
