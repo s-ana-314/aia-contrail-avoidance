@@ -35,6 +35,7 @@ dependencies = [
     { name = "inquirer" },
     { name = "matplotlib" },
     { name = "pandas-stubs" },
+    { name = "plotly" },
     { name = "polars" },
     { name = "pycontrails", extra = ["complete"] },
     { name = "traffic" },
@@ -68,6 +69,7 @@ requires-dist = [
     { name = "inquirer", specifier = ">=3.4.1" },
     { name = "matplotlib", specifier = ">=3.10.7" },
     { name = "pandas-stubs", specifier = ">=2.3.2.250926" },
+    { name = "plotly", specifier = ">=6.5.2" },
     { name = "polars", specifier = ">=1.36.1" },
     { name = "pycontrails", extras = ["complete"], specifier = ">=0.59.1" },
     { name = "traffic", specifier = ">=2.13" },
@@ -3793,6 +3795,19 @@ source = { registry = "https://gitlab.developers.cam.ac.uk/api/v4/projects/8115/
 sdist = { url = "https://files.pythonhosted.org/packages/61/33/9611380c2bdb1225fdef633e2a9610622310fed35ab11dac9620972ee088/platformdirs-4.5.0.tar.gz", hash = "sha256:70ddccdd7c99fc5942e9fc25636a8b34d04c24b335100223152c2803e4063312", size = 21632, upload-time = "2025-10-08T17:44:48.791Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/73/cb/ac7874b3e5d58441674fb70742e6c374b28b0c7cb988d37d991cde47166c/platformdirs-4.5.0-py3-none-any.whl", hash = "sha256:e578a81bb873cbb89a41fcc904c7ef523cc18284b7e3b3ccf06aca1403b7ebd3", size = 18651, upload-time = "2025-10-08T17:44:47.223Z" },
+]
+
+[[package]]
+name = "plotly"
+version = "6.5.2"
+source = { registry = "https://gitlab.developers.cam.ac.uk/api/v4/projects/8115/packages/pypi/simple" }
+dependencies = [
+    { name = "narwhals" },
+    { name = "packaging" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e3/4f/8a10a9b9f5192cb6fdef62f1d77fa7d834190b2c50c0cd256bd62879212b/plotly-6.5.2.tar.gz", hash = "sha256:7478555be0198562d1435dee4c308268187553cc15516a2f4dd034453699e393", size = 7015695, upload-time = "2026-01-14T21:26:51.222Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8a/67/f95b5460f127840310d2187f916cf0023b5875c0717fdf893f71e1325e87/plotly-6.5.2-py3-none-any.whl", hash = "sha256:91757653bd9c550eeea2fa2404dba6b85d1e366d54804c340b2c874e5a7eb4a4", size = 9895973, upload-time = "2026-01-14T21:26:47.135Z" },
 ]
 
 [[package]]
