@@ -215,8 +215,14 @@ def generate_energy_forcing_statistics(  # noqa: PLR0915
             "seasonally": None,
             "annually": None,
         },
+        "air_traffic_density_over_time_histogram": {
+            "hourly": air_traffic_density_per_temporal_histogram,
+            "daily": None,
+            "monthly": None,
+            "seasonally": None,
+            "annually": None,
+        },
         "distance_flown_per_temporal_histogram": distance_flown_per_temporal_histogram,
-        "air_traffic_density_per_temporal_histogram": air_traffic_density_per_temporal_histogram,
     }
 
     # --- Write Output ---
