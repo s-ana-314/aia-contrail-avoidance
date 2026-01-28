@@ -70,13 +70,6 @@ def generate_energy_forcing_statistics(  # noqa: PLR0915
 
     # --- Energy Forcing Statistics ---
     total_energy_forcing = flight_dataframe["ef"].sum()
-    mean_energy_forcing_per_segment = flight_dataframe["ef"].mean()
-    median_energy_forcing_per_segment = flight_dataframe["ef"].median()
-    max_energy_forcing_per_segment = flight_dataframe["ef"].max()
-
-    # Energy forcing statistics for contrail-forming segments only
-    mean_ef_contrail_segments = contrail_forming_segments["ef"].mean()
-    median_ef_contrail_segments = contrail_forming_segments["ef"].median()
 
     # Per-flight energy forcing statistics
     flight_ef_summary = flight_dataframe.group_by("flight_id").agg(
@@ -176,8 +169,8 @@ def generate_energy_forcing_statistics(  # noqa: PLR0915
 
     # --- Build Summary ---
     stats = {
-        "file_name": parquet_file,
         "overview": {
+            "file_name": parquet_file,
             "total_datapoints": total_datapoints,
         },
         "contrail_formation": {
@@ -190,7 +183,7 @@ def generate_energy_forcing_statistics(  # noqa: PLR0915
         },
         "number_of_flights": {
             "total": total_flights,
-            "Regional": number_of_regional_flights,
+            "regional": number_of_regional_flights,
             "international": number_of_international_flights,
         },
         "flight_distance_by_airspace": {
@@ -205,19 +198,24 @@ def generate_energy_forcing_statistics(  # noqa: PLR0915
             "uk_airspace": total_energy_forcing_in_uk_airspace,
             "international_airspace": total_energy_forcing_in_international_airspace,
         },
-        "energy_forcing_per_segment": {
-            "mean": mean_energy_forcing_per_segment,
-            "median": median_energy_forcing_per_segment,
-            "max": max_energy_forcing_per_segment,
-            "mean_contrail_forming_only": mean_ef_contrail_segments,
-            "median_contrail_forming_only": median_ef_contrail_segments,
-        },
         "energy_forcing_per_flight": {
             "histogram": ef_histogram,
         },
-        "temporal_granularity": temporal_granularity.value,
+        "distance_flown_over_time_histogram": {
+            "hourly": distance_flown_per_temporal_histogram,
+            "daily": None,
+            "monthly": None,
+            "seasonally": None,
+            "annually": None,
+        },
+        "distance_forming_contrails_over_time_histogram": {
+            "hourly": distance_forming_contrails_per_temporal_histogram,
+            "daily": None,
+            "monthly": None,
+            "seasonally": None,
+            "annually": None,
+        },
         "distance_flown_per_temporal_histogram": distance_flown_per_temporal_histogram,
-        "distance_forming_contrails_per_temporal_histogram": distance_forming_contrails_per_temporal_histogram,
         "air_traffic_density_per_temporal_histogram": air_traffic_density_per_temporal_histogram,
     }
 
