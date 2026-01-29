@@ -14,12 +14,15 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def plot_energy_forcing_histogram(json_file: str | Path, output_file: str | Path) -> None:
+def plot_energy_forcing_histogram(
+    json_file: str | Path, output_file_histogram: str | Path, output_file_cumulative: str | Path
+) -> None:
     """Plot histogram of energy forcing per flight with cumulative forcing analysis.
 
     Args:
         json_file: Path to the JSON file containing energy forcing statistics
-        output_file: Path to save the output plot image
+        output_file_histogram: Path to save the output histogram plot image
+        output_file_cumulative: Path to save the output cumulative plot image
     """
     # Load the JSON file
     with open(f"results/{json_file}.json") as f:  # noqa: PTH123
@@ -88,8 +91,8 @@ def plot_energy_forcing_histogram(json_file: str | Path, output_file: str | Path
     )
 
     fig1.update_traces(marker_line_color="black", marker_line_width=1)
-    fig1.update_xaxes(showline=True, linecolor="black", gridcolor="lightgray")
-    fig1.update_yaxes(showline=True, linecolor="black", gridcolor="lightgray")
+    fig1.update_xaxes(showline=True, linecolor="black", gridcolor="lightgray", mirror=True)
+    fig1.update_yaxes(showline=True, linecolor="black", gridcolor="lightgray", mirror=True)
 
     fig1.add_annotation(
         text=(
@@ -113,47 +116,68 @@ def plot_energy_forcing_histogram(json_file: str | Path, output_file: str | Path
     flight_indices = np.arange(1, len(flight_ef_summary) + 1)
     cumulative_ef_percentage = (flight_ef_summary["cumulative_ef"] / total_energy_forcing) * 100
 
-    ax2.plot(flight_indices, cumulative_ef_percentage, linewidth=2, color="blue")
-    ax2.axhline(
+    fig2 = px.line(
+        x=flight_indices,
+        y=cumulative_ef_percentage,
+        labels={
+            "x": "Number of Flights (sorted by EF, highest first)",
+            "y": "Cumulative Energy Forcing (%)",
+        },
+        title="Cumulative Energy Forcing Contribution",
+    )
+
+    fig2.add_hline(
         80,
-        color="green",
-        linestyle="--",
-        linewidth=2,
-        label=f"80% of forcing ({flights_for_80_percent} flights)",
+        line_dash="dash",
+        line_color="green",
+        annotation_text=f"80% of forcing ({flights_for_80_percent} flights)",
+        annotation_position="bottom right",
     )
-    ax2.axhline(
+
+    fig2.add_hline(
         50,
-        color="orange",
-        linestyle="--",
-        linewidth=2,
-        label=f"50% of forcing ({flights_for_50_percent} flights)",
+        line_dash="dash",
+        line_color="orange",
+        annotation_text=f"50% of forcing ({flights_for_50_percent} flights)",
+        annotation_position="bottom right",
     )
-    ax2.axhline(
+
+    fig2.add_hline(
         20,
-        color="red",
-        linestyle="--",
-        linewidth=2,
-        label=f"20% of forcing ({flights_for_20_percent} flights)",
+        line_dash="dash",
+        line_color="red",
+        annotation_text=f"20% of forcing ({flights_for_20_percent} flights)",
+        annotation_position="bottom right",
     )
 
-    ax2.axvline(flights_for_80_percent, color="green", linestyle=":", linewidth=1.5, alpha=0.7)
-    ax2.axvline(flights_for_50_percent, color="orange", linestyle=":", linewidth=1.5, alpha=0.7)
-    ax2.axvline(flights_for_20_percent, color="red", linestyle=":", linewidth=1.5, alpha=0.7)
+    fig2.update_layout(
+        xaxis={"range": [0, total_flights]},
+        yaxis={"range": [0, 105]},
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+    )
 
-    ax2.set_xlabel("Number of Flights (sorted by EF, highest first)", fontsize=12)
-    ax2.set_ylabel("Cumulative Energy Forcing (%)", fontsize=12)
-    ax2.set_title("Cumulative Energy Forcing Contribution", fontsize=14, fontweight="bold")
-    ax2.legend(fontsize=10, loc="lower right")
-    ax2.grid(alpha=0.3)
-    ax2.set_xlim(0, total_flights)
-    ax2.set_ylim(0, 105)
+    fig2.add_vline(flights_for_80_percent, line_dash="dot", line_color="green", opacity=0.7)
+    fig2.add_vline(flights_for_50_percent, line_dash="dot", line_color="orange", opacity=0.7)
+    fig2.add_vline(flights_for_20_percent, line_dash="dot", line_color="red", opacity=0.7)
+    fig2.update_xaxes(showline=True, linecolor="black", gridcolor="lightgray")
+    fig2.update_yaxes(showline=True, linecolor="black", gridcolor="lightgray")
 
-    fig.write_html(
-        f"plotly_analysis/plotly_plots/{output_file}.html", full_html=False, include_plotlyjs="cdn"
+    fig1.write_html(
+        f"plotly_analysis/plotly_plots/{output_file_histogram}.html",
+        full_html=False,
+        include_plotlyjs="cdn",
+    )
+
+    fig2.write_html(
+        f"plotly_analysis/plotly_plots/{output_file_cumulative}.html",
+        full_html=False,
+        include_plotlyjs="cdn",
     )
 
 
 if __name__ == "__main__":
     input_json = "energy_forcing_statistics"
-    output_file = "energy_forcing_per_flight_histogram"
-    plot_energy_forcing_histogram(input_json, output_file)
+    output_file_histogram = "energy_forcing_per_flight_histogram"
+    output_file_cumulative = "energy_forcing_cumulative"
+    plot_energy_forcing_histogram(input_json, output_file_histogram, output_file_cumulative)

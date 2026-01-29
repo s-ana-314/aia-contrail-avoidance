@@ -933,20 +933,34 @@
       </div>
     </div>
 
-    <div id="plot-container" style="display: flex; flex-wrap: wrap;">
+    <div id="plot-container" style="display: flex; flex-wrap: wrap">
       <iframe
         src="plotly_analysis/plotly_plots/distance_flown_by_altitude_histogram.html"
-        style="flex: 1 1 48%; min-width: 400px;"
-        height="500px"
+        style="flex: 1 1 48%; min-width: 400px"
+        height="800px"
         frameborder="0"
       >
       </iframe>
-      <iframe
-        src="plotly_analysis/plotly_plots/energy_forcing_per_flight_histogram.html"
-        style="flex: 1 1 48%; min-width: 400px;"
-        height="500px"
-        frameborder="0"
-      ></iframe>
+      <div
+        style="
+          flex: 1 1 48%;
+          min-width: 400px;
+          display: flex;
+          flex-direction: column;
+          height: 800px;
+        "
+      >
+        <iframe
+          src="plotly_analysis/plotly_plots/energy_forcing_per_flight_histogram.html"
+          style="width: 100%; height: 50%; border: none"
+          frameborder="0"
+        ></iframe>
+        <iframe
+          src="plotly_analysis/plotly_plots/energy_forcing_cumulative.html"
+          style="width: 100%; height: 50%; border: none"
+          frameborder="0"
+        ></iframe>
+      </div>
     </div>
 
     <div class="control-panel">
