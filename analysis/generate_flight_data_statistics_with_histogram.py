@@ -13,11 +13,12 @@ from aia_model_contrail_avoidance.core_model.dimensions import (
     TemporalGranularity,
     _get_temporal_grouping_field,
     _get_temporal_range_and_labels,
+    user_input_temporal_granularity,
 )
 
 DISTANCE_BINS = [0, 0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 7, 8, 9, 10, 20, 100, 2000, 3000]
 ALTITUDE_BIN_SIZE = 10  # in flight levels (1000 ft)
-TEMPORAL_GRANULARITY = TemporalGranularity.HOURLY  # Granularity for temporal aggregation
+TEMPORAL_GRANULARITY = user_input_temporal_granularity()  # Granularity for temporal aggregation
 
 
 def _create_histogram(data: pl.Series, bins: list[float]) -> dict[str, list[float] | float]:
@@ -197,6 +198,6 @@ def generate_flight_statistics(  # noqa: PLR0915
 
 if __name__ == "__main__":
     generate_flight_statistics(
-        parquet_file_name="2024_01_01_sample_processed",
+        parquet_file_name="2024_01_01_sample_processed_with_interpolation",
         jsonfilename="2024_01_01_sample_stats_processed",
     )

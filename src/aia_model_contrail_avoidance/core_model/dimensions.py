@@ -10,6 +10,8 @@ __all__ = [
 ]
 from enum import Enum
 
+import inquirer  # type: ignore[import-untyped]
+
 
 class SpatialGranularity(Enum):
     """Defines spatial granularity options for airspace partitioning."""
@@ -84,3 +86,17 @@ def _get_temporal_range_and_labels(
     msg = f"Unknown temporal granularity: {temporal_granularity}"
     raise ValueError(msg)
     return None
+
+
+def user_input_temporal_granularity() -> TemporalGranularity:
+    questions = [
+        inquirer.List(
+            "Time_Scale",
+            message="What time scale do you want to process",
+            choices=["HOURLY", "DAILY", "MONTHLY", "SEASONALLY", "ANNUALLY"],
+        ),
+    ]
+    answers = inquirer.prompt(questions)
+    temporal = TemporalGranularity[answers["Time_Scale"]]
+    print(temporal)
+    return temporal
