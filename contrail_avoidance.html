@@ -922,42 +922,31 @@
           <option value="SEASONALLY">Seasonally</option>
           <option value="ANNUALLY">Annually</option>
         </select>
-      </div>
-
-      <div id="db-tab" class="tab-content">
-        <div
-          class="drop-zone"
-          id="dbDropZone"
-          onclick="document.getElementById('dbFileInput').click()"
-        >
-          <p>📁 Drop SQLite DB file here or click to browse</p>
-          <p style="font-size: 12px; color: #666">
-            Expected file: aia-analysis-dft-sprint-one-2025-INTERNAL-USE-ONLY.db
-          </p>
-        </div>
+        <label for="dateSelect">📅 Date:</label>
         <input
-          type="file"
-          id="dbFileInput"
-          class="file-input"
-          accept=".db,.sqlite,.sqlite3"
+          type="date"
+          id="dateSelect"
+          min="2024-01-01"
+          max="2024-12-31"
+          value="2024-01-01"
         />
       </div>
-      <div id="csv-tab" class="tab-content active">
-        <div
-          class="drop-zone"
-          id="csvDropZone"
-          onclick="document.getElementById('csvFileInput').click()"
-        >
-          <p>📊 Drop CSV file here or click to browse</p>
-          <p style="font-size: 12px; color: #666">
-            Required columns: year, fuel_route, feedstock, region (M49 code or
-            name), abatement_potential, saf_cost
-          </p>
-        </div>
-        <input type="file" id="csvFileInput" class="file-input" accept=".csv" />
-      </div>
+    </div>
 
-      <div id="status" class="status"></div>
+    <div id="plot-container" style="display: flex; flex-wrap: wrap;">
+      <iframe
+        src="plotly_analysis/plotly_plots/distance_flown_by_altitude_histogram.html"
+        style="flex: 1 1 48%; min-width: 400px;"
+        height="500px"
+        frameborder="0"
+      >
+      </iframe>
+      <iframe
+        src="plotly_analysis/plotly_plots/distance_flown_by_altitude_histogram.html"
+        style="flex: 1 1 48%; min-width: 400px;"
+        height="500px"
+        frameborder="0"
+      ></iframe>
     </div>
 
     <div class="control-panel">

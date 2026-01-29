@@ -29,6 +29,7 @@ def plot_distance_flown_by_altitude_histogram(
     histogram = stats["distance_flown_by_altitude_histogram"]
     bin_edges = np.array(histogram["bin_edges"])
     counts = np.array(histogram["distance_flown"])
+    total_distance = sum(counts)
 
     fig = px.bar(
         x=(bin_edges[:-1] + bin_edges[1:]) / 2,
@@ -37,9 +38,35 @@ def plot_distance_flown_by_altitude_histogram(
         title="Distance Flown by Flight Level Histogram",
     )
 
-    fig.write_html(f"plotly_analysis/plotly_plots/{output_file}.html")
-    #     plt.savefig(f"results/plotly_plots/{output_file}.png", dpi=300, bbox_inches="tight")
-    #     print(f"Histogram saved as 'results/plotly_plots/{output_file}.png'")
+    fig.update_layout(
+        bargap=0.05,
+        modebar_remove=[
+            "zoom",
+            "pan",
+            "select",
+            "lasso",
+            "zoomIn",
+            "zoomOut",
+            "autoScale",
+            "resetScale",
+        ],
+    )
+
+    fig.add_annotation(
+        text=f"Total Distance Flown: {total_distance:,.2f} meters",
+        xref="paper",
+        yref="paper",  # Use relative coordinates (0-1)
+        x=0.05,
+        y=0.95,  # Top left corner
+        showarrow=False,
+        bgcolor="white",
+        bordercolor="black",
+        borderwidth=1,
+    )
+
+    fig.write_html(
+        f"plotly_analysis/plotly_plots/{output_file}.html", full_html=False, include_plotlyjs="cdn"
+    )
 
 
 if __name__ == "__main__":
