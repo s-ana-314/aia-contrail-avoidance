@@ -154,6 +154,16 @@ def plot_energy_forcing_histogram(
     )
 
     fig2.update_layout(
+        modebar_remove=[
+            "zoom",
+            "pan",
+            "select",
+            "lasso",
+            "zoomIn",
+            "zoomOut",
+            "autoScale",
+            "resetScale",
+        ],
         xaxis={"range": [0, total_flights]},
         yaxis={"range": [0, 105]},
         plot_bgcolor="white",
@@ -166,12 +176,14 @@ def plot_energy_forcing_histogram(
 
     fig1.write_html(
         f"plotly_analysis/plotly_plots/{output_file_histogram}.html",
+        config={"displaylogo": False},
         full_html=False,
         include_plotlyjs="cdn",
     )
 
     fig2.write_html(
         f"plotly_analysis/plotly_plots/{output_file_cumulative}.html",
+        config={"displaylogo": False},
         full_html=False,
         include_plotlyjs="cdn",
     )
