@@ -204,7 +204,6 @@ def generate_energy_forcing_statistics(
     # --- Build Summary ---
     stats = {
         "overview": {
-            "file_name": parquet_file,
             "total_datapoints": total_number_of_datapoints,
         },
         "contrail_formation": {
