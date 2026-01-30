@@ -93,6 +93,18 @@ def plot_airspace_polygons(
             )
         )
 
+        fig.update_layout(
+            modebar_remove=[
+                "zoom",
+                "pan",
+                "select",
+                "lasso",
+                "zoomIn",
+                "zoomOut",
+                "autoScale",
+                "resetScale",
+            ],
+        )
     # Add latitude labels on the left (northings)
     for lat in np.arange(
         grid_south, grid_north + 0.1, 2.5
@@ -146,7 +158,8 @@ def plot_airspace_polygons(
         )
 
     fig.write_html(
-        f"plotly_analysis/plotly_plots/{output_file}.html",
+        f"results/plots/{output_file}.html",
+        config={"displaylogo": False, "staticPlot": True},
         full_html=False,
         include_plotlyjs="cdn",
     )
