@@ -21,7 +21,9 @@ def plot_energy_forcing_histogram(json_file: str, output_plot: str) -> None:
         stats = json.load(f)
 
     # Load the full flight data with energy forcing
-    flight_data = pl.read_parquet("data/contrails_model_data/2024_01_01_sample_with_ef.parquet")
+    flight_data = pl.read_parquet(
+        "data/contrails_model_data/2024_01_01_sample_processed_with_interpolation_with_ef.parquet"
+    )
 
     # Calculate total energy forcing per flight
     flight_ef_summary = (

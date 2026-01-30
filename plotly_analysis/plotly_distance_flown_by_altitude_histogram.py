@@ -39,7 +39,7 @@ def plot_distance_flown_by_altitude_histogram(
     )
 
     fig.update_layout(
-        bargap=0.05,
+        bargap=0.1,
         modebar_remove=[
             "zoom",
             "pan",
@@ -50,7 +50,13 @@ def plot_distance_flown_by_altitude_histogram(
             "autoScale",
             "resetScale",
         ],
+        plot_bgcolor="white",
+        paper_bgcolor="white",
     )
+
+    fig.update_traces(marker_line_color="black", marker_line_width=1)
+    fig.update_xaxes(showline=True, linecolor="black", gridcolor="lightgray", mirror=True)
+    fig.update_yaxes(showline=True, linecolor="black", gridcolor="lightgray", mirror=True)
 
     fig.add_annotation(
         text=f"Total Distance Flown: {total_distance:,.2f} meters",
@@ -63,7 +69,7 @@ def plot_distance_flown_by_altitude_histogram(
         bordercolor="black",
         borderwidth=1,
     )
-
+    fig.update_traces(marker_line_color="black", marker_line_width=1)
     fig.write_html(
         f"plotly_analysis/plotly_plots/{output_file}.html", full_html=False, include_plotlyjs="cdn"
     )
